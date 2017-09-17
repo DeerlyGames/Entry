@@ -1,0 +1,158 @@
+-- These values automatically update throughout the project.
+ENTRY_VERSION_MAJOR=0
+ENTRY_VERSION_MINOR=2
+ENTRY_VERSION_PATCH=1
+
+ENTRY_VERSION=ENTRY_VERSION_MAJOR.."."..ENTRY_VERSION_MINOR.."."..ENTRY_VERSION_PATCH
+
+---------------  Visual Studio  ---------------------
+if string.startswith( _ACTION, "vs" ) then
+buildoptions{"/FS"}
+flags { "StaticRuntime", "MultiProcessorCompile" }
+------------------  Makefile  -----------------------
+--elseif string.startswith( _ACTION, "gmake" ) then
+end
+
+configuration "Debug"
+	symbols "On"
+	flags{ "ExtraWarnings" }
+
+configuration "Release"
+	optimize "Full"
+	flags{"LinkTimeOptimization"}
+
+solution "Entry"
+	location ""
+	configurations{ "Debug", "Release" }
+	language "C++"
+
+project "EntryMain"
+	location "Build"
+	objdir( "%{cfg.location}/".._OPTIONS["platform"] )
+	targetdir "%{cfg.objdir}/%{cfg.buildcfg}"
+	targetname "Entry"
+	kind "ConsoleApp"
+	files
+	{ 
+		"Source/**.cpp",
+		"Source/**.h"
+	}
+
+	filter {"system:linux"}
+		links{ "dl", "pthread" }
+	filter {"system:windows"}
+		files {"Source/Entry.rc"}
+	filter{}
+
+group "Samples"
+project "HelloWorld"
+	location "Build"
+	objdir( "%{cfg.location}/".._OPTIONS["platform"] )
+	targetdir	"%{cfg.objdir}/%{cfg.buildcfg}"
+	kind "SharedLib"
+	files
+	{ 
+		"Sample/HelloWorld.cpp"
+	}
+
+project "SimpleLoop"
+	location "Build"
+	objdir( "%{cfg.location}/".._OPTIONS["platform"] )
+	targetdir	"%{cfg.objdir}/%{cfg.buildcfg}"
+	kind "SharedLib"
+	files { "Sample/SimpleLoop.cpp" }
+
+if _ACTION == "clean" then
+	os.rmdir("Entry.xcworkspace")
+	os.rmdir("Build")
+	os.rmdir(".vs")
+	os.remove("Entry.VC.db")
+	os.remove("Entry.vcxproj")
+	os.remove("Entry.make")
+	os.remove("*.sln")
+	os.remove("*.sdf")
+	os.remove("*.opendb")
+	os.remove("*.opensdf")
+	os.remove("Makefile")
+end
+
+newaction {
+	trigger = "zip",
+	description = "Used by CI to zip a deployable version.",
+	execute = function ()
+		print ("Not yet implemented.")
+	end
+}
+
+-- The following snippets updates all relevant version numbers.
+local EntryBase = io.open("Source/Entry.h", "r")
+Lines = {}
+local versionChanged = false
+for line in EntryBase:lines() do
+	if string.find(line, "define ENTRY_VERSION_MAJOR") then
+		if(tonumber(string.match(line, "%d+"))~=ENTRY_VERSION_MAJOR) then
+			line="#define ENTRY_VERSION_MAJOR "..ENTRY_VERSION_MAJOR
+			EntryBase = true
+		end
+	elseif string.find(line, "define ENTRY_VERSION_MINOR") then
+		if(tonumber(string.match(line, "%d+"))~=ENTRY_VERSION_MINOR) then
+			line="#define ENTRY_VERSION_MINOR "..ENTRY_VERSION_MINOR
+			versionChanged = true
+		end
+	elseif string.find(line, "define ENTRY_VERSION_PATCH") then
+		if(tonumber(string.match(line, "%d+"))~=ENTRY_VERSION_PATCH) then
+			line="#define ENTRY_VERSION_PATCH "..ENTRY_VERSION_PATCH
+			versionChanged = true
+		end
+	end
+	Lines[#Lines+1] = line
+end
+
+if(versionChanged == true) then
+	local EntryBase = io.open("Source/Entry.h", "w");
+	for i = 1, #Lines do
+		EntryBase:write( string.format( "%s\n", Lines[i]) )
+	end
+	EntryBase:flush()
+	EntryBase:close()
+else
+	EntryBase:close()
+end
+
+-- Windows Resource Files
+-- Updates VersionNumbers
+local versionrc = io.open("Source/Entry.rc", "r")
+Lines = {}
+for line in versionrc:lines() do
+	if string.find(line, "FILEVERSION") then
+		line = string.format( " FILEVERSION %s,%s,%s,0",ENTRY_VERSION_MAJOR,
+														ENTRY_VERSION_MINOR,
+														ENTRY_VERSION_PATCH)
+	end
+	if string.find(line, "PRODUCTVERSION") then
+		line = string.format( " PRODUCTVERSION %s,%s,%s,0",	ENTRY_VERSION_MAJOR,
+															ENTRY_VERSION_MINOR,
+															ENTRY_VERSION_PATCH)
+	end
+	if string.find(line, "FileVersion") then
+		line = string.format( "            VALUE \"FileVersion\", \"%s.%s.%s\"",
+															ENTRY_VERSION_MAJOR,
+															ENTRY_VERSION_MINOR,
+															ENTRY_VERSION_PATCH)
+	end
+	if string.find(line, "ProductVersion") then
+		line = string.format( "            VALUE \"ProductVersion\", \"%s.%s.%s\"",
+															ENTRY_VERSION_MAJOR,
+															ENTRY_VERSION_MINOR,
+															ENTRY_VERSION_PATCH)
+	end
+	Lines[#Lines+1] = line
+end
+versionrc:close()
+
+local versionrc = io.open("Source/Entry.rc", "w");
+for i = 1, #Lines do
+	versionrc:write( string.format( "%s\n", Lines[i]) )
+end
+versionrc:flush()
+versionrc:close()
