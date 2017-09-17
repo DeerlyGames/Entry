@@ -15,7 +15,7 @@ For developers faster iteration results in more room for creativity. This projec
 ```c
 int Entry_Attach(const char* _dir, const char* _name, const char* _prefix, const char* _suffix)
 ```
-Attach the path of a dynamically loadable library to the system.
+''' Attach the path of a dynamically loadable library to the system. '''
 
 | Type   | Name                | Description  |
 | ------ | ------------------- | ------------ |
