@@ -12,7 +12,7 @@ For developers faster iteration results in more room for creativity. This projec
 ## Documentation
 ### Introduction
 ### Functions
-#### int Entry_Attach(const char* _dir, const char* _name, const char* _prefix, const char* _suffix)
+#### ```int Entry_Attach(const char* _dir, const char* _name, const char* _prefix, const char* _suffix)```
 Attach the path of a dynamically loadable library to the system.
 
 | Type   | Name                | Description  |
@@ -23,7 +23,7 @@ Attach the path of a dynamically loadable library to the system.
 | <code>const char*</code> | _suffix | Suffix of DLL e.g. .so or .dll |
 
 #### int Entry_Run()
-    Runs the specified entry setup. Returns 0 (Requests quit) or 1 (Keep running).
+Runs the specified entry setup. Returns 0 (Requests quit) or 1 (Keep running).
 ### Getting Started
 
     #include "Entry.h"
