@@ -22,20 +22,21 @@ Attach the path of a dynamically loadable library to the system.
 | <code>const char*</code> | _prefix | Prefix of DLL e.g. lib |
 | <code>const char*</code> | _suffix | Suffix of DLL e.g. .so or .dll |
 
-#### int Entry_Run()
+#### ```c int Entry_Run() ```
 Runs the specified entry setup. Returns 0 (Requests quit) or 1 (Keep running).
 ### Getting Started
+```ruby
+#include "Entry.h"
 
-    #include "Entry.h"
+ENTRY_MAIN( int argc, char* argv[] )
+{
+Entry_Attach("", "SimpleLoop");
+while (Entry_Run()) {
 
-    ENTRY_MAIN( int argc, char* argv[] )
-    {
-        Entry_Attach("", "SimpleLoop");
-        while (Entry_Run()) {
-
-        }
-        return 0;
-    }
+}
+return 0;
+}
+``` 
 ### Compiling
 
 #### Visual Studio ####
