@@ -13,17 +13,16 @@ For developers faster iteration results in more room for creativity. This projec
 ### Introduction
 ### Functions
 ```c
+// Attach the path of a dynamically loadable library to the system.
 int Entry_Attach(const char* _dir, const char* _name, const char* _prefix, const char* _suffix)
 ```
-''' Attach the path of a dynamically loadable library to the system. '''
-
 | Type   | Name                | Description  |
 | ------ | ------------------- | ------------ |
 | <code>const char*</code> | _dir | Path to Dynamic library. e.g. Compiled/ |
 | <code>const char*</code> | _name | Name of Dynamic Library e.g. Main |
 | <code>const char*</code> | _prefix | Prefix of DLL e.g. lib |
 | <code>const char*</code> | _suffix | Suffix of DLL e.g. .so or .dll |
-
+___________________________________________________________________________________________________
 ```c
 int Entry_Run()
 ```
