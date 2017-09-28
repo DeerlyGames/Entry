@@ -52,23 +52,24 @@ std::wstring utf8toUtf16(const std::string & str)
 }
 
 #else
+#	include <fcntl.h>
 #	include <dlfcn.h> /*dlopen*/
 #	include <pthread.h>
 #   include <pwd.h> /* getpwuid */
+#	include <stdlib.h>
 #	include <sys/time.h>
+#	include <sys/types.h>
+#	include <sys/stat.h>
+#	include <unistd.h>
 #endif
 
 #if ENTRY_PLATFORM_LINUX
 #	include <errno.h> // Perhaps not needed errno
-#	include <fcntl.h>
 #	include <linux/limits.h>
-#	include <stdlib.h>
 #	include <sys/inotify.h>
-#	include <sys/types.h>
-#	include <sys/stat.h>
-#	include <unistd.h>
 #elif ENTRY_PLATFORM_MACOS
-
+#	include <mach-o/dyld.h>
+#	include <sys/event.h>
 #elif ENTRY_PLATFORM_WEB
 #	define PATH_MAX	256
 #endif
@@ -373,7 +374,9 @@ public:
 		watchHandle = -1;
 		watchHandle = inotify_init();
 #elif ENTRY_PLATFORM_MACOS
-		supported = IsFileWatcherSupported();
+		_queueFD = -1;
+		_dirFD = -1;
+		_stopped = false;
 #endif
 	}
 
@@ -381,6 +384,9 @@ public:
 		StopWatching();
 #if ENTRY_PLATFORM_LINUX
 		close(watchHandle);
+#elif ENTRY_PLATFORM_MACOS
+		close(_dirFD);
+		close(_queueFD);
 #endif
 	}
 
@@ -418,8 +424,19 @@ public:
 		return true;
 
 #elif ENTRY_PLATFORM_MACOS
-		bool supported;
-		void* watcher;
+		_dirFD = open(_path.c_str(), O_EVTONLY);
+		if(_dirFD < 0){
+			printf("Unable to open directory \n");
+			return false;
+		}
+		_queueFD = kqueue();
+		if (_queueFD < 0){
+			close(_dirFD);
+			printf("Cannot create kqueue \n");
+			return false;
+			//("Cannot create kqueue", errno);
+		}
+		return true;
 #endif
 	}
 
@@ -447,6 +464,7 @@ public:
 				inotify_rm_watch(watchHandle, i->first);
 			dirHandle.clear();
 #elif ENTRY_PLATFORM_MACOS
+			_stopped = true;
 			//CloseFileWatcher(watcher);
 #endif	
 
@@ -551,6 +569,36 @@ public:
 			}
 		}
 #elif ENTRY_PLATFORM_MACOS
+		while (!_stopped)
+		{
+			struct timespec timeout;
+			timeout.tv_sec = 0;
+			timeout.tv_nsec = 200000000;
+			unsigned eventFilter = NOTE_WRITE;
+			struct kevent event;
+			struct kevent eventData;
+			EV_SET(&event, _dirFD, EVFILT_VNODE, EV_ADD | EV_CLEAR, eventFilter, 0, 0);
+			int nEvents = kevent(_queueFD, &event, 1, &eventData, 1, &timeout);
+			if (nEvents < 0 || eventData.flags == EV_ERROR)
+			{
+	/*			try
+				{
+					FileImpl::handleLastErrorImpl(owner().directory().path());
+				}
+				catch (Poco::Exception& exc)
+				{
+					owner().scanError(&owner(), exc);
+				}*/
+			}
+			else if (nEvents > 0 || true)
+			{
+				ItemInfoMap newEntries;
+	//			scan(newEntries);
+	//			compare(entries, newEntries);
+	//			std::swap(entries, newEntries);
+	//			lastScan.update();
+			}
+		}
 #endif
 	}
 
@@ -612,8 +660,8 @@ public:
 #endif
 		}
 
-
 	private:
+
 		unsigned startTime_;
 	};
 
@@ -626,9 +674,36 @@ private:
 #elif ENTRY_PLATFORM_LINUX
 	std::map<int, std::string> dirHandle;
 	int watchHandle;
-#elif ENTRY_PLATFORM_MACOS
-	bool supported;
-	void* watcher;
+#elif ENTRY_PLATFORM_MACOS		
+	class ItemInfo
+	{
+	public:
+		ItemInfo() :
+			size(0)
+			{}
+
+		ItemInfo(const ItemInfo& _rhs) :
+			path(_rhs.path),
+			size(_rhs.size),
+			lastModified(_rhs.lastModified)
+		{}
+	/*		
+		explicit ItemInfo(const File& f):
+			path(f.path()),
+			size(f.isFile() ? f.getSize() : 0),
+			lastModified(f.getLastModified())
+		{}*/
+
+	private:
+		std::string path;
+		uint64_t size;
+		uint64_t lastModified;
+	};
+	typedef std::map< std::string, ItemInfo> ItemInfoMap;
+
+	int _queueFD;
+	int _dirFD;
+	bool _stopped;	
 #endif
 	float delay;
 };
@@ -646,7 +721,7 @@ const char* Entry_GetPath() {
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 	appDirectory = converter.to_bytes(tmp);
 	return _strdup(appDirectory.c_str());
-#else // ENTR_
+#elif ENTRY_PLATFORM_LINUX
 	if (!appDirectory.empty()) return strdup(appDirectory.c_str());
 
 	char path[PATH_MAX];
@@ -656,6 +731,15 @@ const char* Entry_GetPath() {
 	readlink(link.c_str(), path, PATH_MAX);
 	appDirectory = path;
 	return strdup(appDirectory.c_str());
+#else // ENTRY_PLATFORM_MACOS
+	char path[1024];
+	uint32_t size = sizeof(path);
+	if (_NSGetExecutablePath(path, &size) != 0){
+	    printf("buffer too small; need size %u\n", size);
+	    return "";
+	}
+	std::string res = path;
+	return res.c_str();
 #endif
 }
 
@@ -743,7 +827,7 @@ const char* GetTmpDir() {
 }
 
 const char* GetDefaultPrefix() {
-#if ENTRY_PLATFORM_ANDROID || ENTRY_PLATFORM_LINUX
+#if ENTRY_PLATFORM_ANDROID || ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_MACOS
 	return "lib";
 #else
 	return "";
@@ -798,12 +882,13 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 	library = LoadLib(library, tmpLib);
 
 	Init = (PTR_Init)LoadFunction(library, "Init");
-	if (Init) if (Init()) return 2;
+
+	if (Init){ if (Init()) return 2; };
 
 	Reload = (PTR_Reload)LoadFunction(library, "Reload");
 	Update = (PTR_Update)LoadFunction(library, "Update");
 
-	if (Reload) if (Reload()>0) return 2;
+	if (Reload){ if (Reload()>0) return 2;};
 
 	return (library == 0);
 }

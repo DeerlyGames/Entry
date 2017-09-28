@@ -10,7 +10,7 @@
 #	if defined(_WIN32)
 #		define ENTRY_INTERFACE ENTRY_EXTERNC __declspec(dllexport)
 #	else
-#		define ENTRY_INTERFACE ENTRY_EXTERNC
+#		define ENTRY_INTERFACE ENTRY_EXTERNC __attribute__((visibility("default")))
 #	endif
 #endif // ENTRY_INTERFACE
 
