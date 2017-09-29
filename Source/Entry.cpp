@@ -68,6 +68,8 @@ std::wstring utf8toUtf16(const std::string & str)
 #	include <linux/limits.h>
 #	include <sys/inotify.h>
 #elif ENTRY_PLATFORM_MACOS
+#	include <atomic>
+#	include <dirent.h>
 #	include <mach-o/dyld.h>
 #	include <sys/event.h>
 #elif ENTRY_PLATFORM_WEB
@@ -157,9 +159,37 @@ int FileExists(const char* _path) {
 	return true;
 #else
 	struct stat st;
-	return stat(_path, &st) == 0;
+	return ((stat(_path, &st) != -1) && (st.st_mode & S_IFREG));
 #endif
 }
+
+uint64_t FileSize(const char* _path)
+{
+	FILE* file = fopen(_path, "rb");
+	if (file) {
+		fseek(file, 0, SEEK_END);
+		uint64_t sizeWhole = ftell(file);
+		fseek(file, 0, SEEK_SET); // seek back to beginning of file
+		fclose(file);
+		return sizeWhole;
+	}
+	else {
+		return 0;
+	}
+}
+
+uint64_t FileLastModified(const char* _path){
+#if ENTRY_PLATFORM_WINDOWS
+	return 0;
+#else
+	struct stat st;
+	if (stat(_path, &st) == 0)
+		return st.st_mtime;
+	else
+		return 0;
+#endif
+}
+
 
 //////////////////////////////////////////////////////////////////////
 // Start: Library Functions
@@ -209,6 +239,162 @@ void DestroyLib(void* _handle) {
 
 //////////////////////////////////////////////////////////////////////
 // Start: FileWatcher & Thread
+
+#if ENTRY_PLATFORM_MACOS
+class RefCounted
+{
+public:
+	RefCounted() :
+		counter(0)
+	{}
+
+	void Duplicate() const {
+		++counter;
+	}
+
+	void Release() const{
+		if(--counter == 0) delete this;
+	}
+
+protected:
+//	(ReferenceCounted)
+	/// Destroys the RefCountedObject.	
+
+	virtual ~RefCounted(){}
+
+private:
+	class AtomicInteger{
+	public:
+		AtomicInteger(){ counter = 0; }
+
+		explicit AtomicInteger(int _val){ counter = _val; }
+
+		~AtomicInteger(){}
+
+		int GetValue() const{ return counter.load(); }
+
+		int operator ++ () { return ++counter; }
+
+		int operator -- () { return --counter; }
+		
+		std::atomic<int> counter;		
+	};
+
+	mutable AtomicInteger counter;	
+};
+class DirIter
+{
+public:
+	DirIter() :
+	pimpl(0)
+	{}
+
+	DirIter(const std::string& _dir) :
+		path(_dir),
+		pimpl(new Implementation(_dir))
+	{
+		path = pimpl->Get();
+	//	file = path;
+	}
+	DirIter(const DirIter& _iter) :
+		path(_iter.path),
+		pimpl(_iter.pimpl)
+	{
+		if (pimpl)
+		{
+			pimpl->Duplicate();
+		//	_file = _path;
+		}
+	}
+
+	~DirIter(){
+		if (pimpl) pimpl->Release();
+	}
+
+	bool HasNext() const{
+		if (GetName().empty()) {
+			return false;
+		}
+		return true;
+	}
+	
+	DirIter& Next(){
+		if(pimpl){
+			path = pimpl->Next();
+		}
+		return *this;
+	}
+
+	const std::string& GetName() const{
+		return path;
+	}
+
+	DirIter& operator = (const DirIter& _it){
+		if (pimpl) pimpl->Release();
+		pimpl = _it.pimpl;
+		if (pimpl)
+		{
+			pimpl->Duplicate();
+			path = _it.path;
+			//file = path;
+		}
+		return *this;		
+	}
+
+	//DirIter& operator = (const std::string& _dir);
+
+	bool operator == (const DirIter& _iterator) const{
+		return GetName() == _iterator.GetName();		
+	}
+
+	bool operator != (const DirIter& _iterator) const{
+		return GetName() != _iterator.GetName();
+	}
+
+private:
+	std::string path;
+
+	class Implementation : public RefCounted
+	{
+	public:
+		Implementation(const std::string& _path) :
+			dir(0)
+		{
+			dir = opendir(_path.c_str());
+			if (!dir){ printf("Unable to opendir for DirectoryIterator\n"); }
+
+			Next();
+		}
+
+		~Implementation(){
+			if(dir) closedir(dir);
+		}
+
+		const std::string& Get() const {
+			return current;
+		}
+
+		const std::string& Next() {
+			do
+			{
+				struct dirent* pEntry = readdir(dir);
+				if (pEntry)
+					current = pEntry->d_name;
+				else
+					current.clear();
+			}
+			while (current == "." || current == "..");
+			return current;
+		}
+
+	private:
+		DIR*        dir;
+		std::string current;
+	};
+	Implementation* pimpl;
+};
+
+#endif
 
 class Mutex
 {
@@ -436,6 +622,9 @@ public:
 			return false;
 			//("Cannot create kqueue", errno);
 		}
+		path = StringAppend(_path);
+		_stopped = false;
+		Run();
 		return true;
 #endif
 	}
@@ -593,7 +782,7 @@ public:
 			else if (nEvents > 0 || true)
 			{
 				ItemInfoMap newEntries;
-	//			scan(newEntries);
+				ItemInfo::scan(newEntries, path);
 	//			compare(entries, newEntries);
 	//			std::swap(entries, newEntries);
 	//			lastScan.update();
@@ -674,7 +863,10 @@ private:
 #elif ENTRY_PLATFORM_LINUX
 	std::map<int, std::string> dirHandle;
 	int watchHandle;
-#elif ENTRY_PLATFORM_MACOS		
+#elif ENTRY_PLATFORM_MACOS
+	class ItemInfo;
+	typedef std::map< std::string, ItemInfo> ItemInfoMap;
+
 	class ItemInfo
 	{
 	public:
@@ -687,19 +879,32 @@ private:
 			size(_rhs.size),
 			lastModified(_rhs.lastModified)
 		{}
-	/*		
-		explicit ItemInfo(const File& f):
-			path(f.path()),
-			size(f.isFile() ? f.getSize() : 0),
-			lastModified(f.getLastModified())
-		{}*/
+
+		ItemInfo(const std::string& _path, uint64_t _lastModified, uint64_t _size) :
+			path(_path),
+			size(_size),
+			lastModified(_lastModified)
+		{}
+
+		static void scan(ItemInfoMap& _entries, const std::string& _path){
+			DirIter it(_path);
+			while(it.HasNext()){
+				const std::string res = _path + it.GetName();
+				std::cout << FileSize(res.c_str()) <<std::endl;
+				if(FileExists(res.c_str())){
+					_entries[it.GetName()] = ItemInfo(	it.GetName(), 
+														FileLastModified(res.c_str()), 
+														FileSize(res.c_str()));//ItemInfo(*it);
+				}
+				it.Next();	
+			}
+		}
 
 	private:
 		std::string path;
 		uint64_t size;
 		uint64_t lastModified;
 	};
-	typedef std::map< std::string, ItemInfo> ItemInfoMap;
 
 	int _queueFD;
 	int _dirFD;
@@ -875,7 +1080,7 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 	const std::string tmpLib = GetTmpDir() + LibName;
 	FileDelete(tmpLib);
 	FileCopy(path, tmpLib);
-	
+
 	notifyEnabled = fileWatcher.StartWatching(dir);
 //	fileWatcher.AddChange(LibName);
 
