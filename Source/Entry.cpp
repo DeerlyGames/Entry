@@ -554,6 +554,9 @@ class FileWatcher : public Thread
 {
 public:
 	FileWatcher() :
+		removed(false),
+		added(false),
+		changed(false),
 		delay(1.0f)
 	{
 #if ENTRY_PLATFORM_LINUX
@@ -576,7 +579,7 @@ public:
 #endif
 	}
 
-	bool StartWatching(const std::string& _path) {
+	bool StartWatching(const std::string& _path, const std::string& _file) {
 		StopWatching();
 #if ENTRY_PLATFORM_WINDOWS
 		dirHandle = (void*)CreateFileW(
@@ -797,6 +800,22 @@ public:
 		changes[fileName].Reset();
 	}
 
+
+	bool IsAdded(){
+		ScopedLock lock(mutex);
+		return false;
+	}
+
+	bool IsChanged(){
+		ScopedLock lock(mutex);
+		return false;
+	}
+
+	bool IsRemoved(){
+		ScopedLock lock(mutex);
+		return false;
+	}
+
 	bool GetNextChange(const std::string& dest) {
 		ScopedLock lock(mutex);
 		unsigned delayMsec = (unsigned)(delay * 1000.0f);
@@ -855,9 +874,27 @@ public:
 	};
 
 private:
+	void SetAdded(){
+		ScopedLock lock(mutex);
+		added = true;
+	}
+
+	void SetRemoved(){
+		ScopedLock lock(mutex);
+		removed = true;
+	}
+
+	void SetChanged(){
+		ScopedLock lock(mutex);		
+		changed = true;
+	}
+
 	std::string path;
 	Mutex mutex;
 	std::map<std::string, Timer> changes;
+	bool removed;
+	bool added;
+	bool changed;
 #if ENTRY_PLATFORM_WINDOWS
 	void * dirHandle;
 #elif ENTRY_PLATFORM_LINUX
@@ -898,6 +935,10 @@ private:
 				}
 				it.Next();	
 			}
+		}
+
+		static void compare(){
+
 		}
 
 	private:
@@ -1081,7 +1122,7 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 	FileDelete(tmpLib);
 	FileCopy(path, tmpLib);
 
-	notifyEnabled = fileWatcher.StartWatching(dir);
+	notifyEnabled = fileWatcher.StartWatching(dir, LibName);
 //	fileWatcher.AddChange(LibName);
 
 	library = LoadLib(library, tmpLib);
