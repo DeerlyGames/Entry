@@ -5,6 +5,34 @@
 extern "C" {
 #endif
 
+#define ENTRY_SILENT	1
+#define ENTRY_KEEPALIVE 2
+
+#ifndef ENTRY_EXTERNC
+#	ifdef __cplusplus
+#		define ENTRY_EXTERNC extern "C"
+#	else 
+#		define ENTRY_EXTERNC
+#	endif
+#endif // ENTRY_EXTERNC
+
+#ifndef ENTRY_MAIN
+#	if ENTRY_PLATFORM_ANDROID
+#		define ENTRY_MAIN ENTRY_EXTERNC int entry_main
+#	else 
+#		define ENTRY_MAIN int main
+#	endif
+#endif // ENTRY_EXTERNC
+
+const char* Entry_GetPath();
+
+/// Attach the path of a dynamically loadable gLibrary to the system.
+int Entry_Attach(const char* _dir, const char* _name, const char* _prefix = "?", const char* _suffix = "?");
+
+/// Runs the specified entry setup. Returns 0 (Requests quiting) or 1 (Keep running).
+int Entry_Run(int _flags = 0);
+
+
 /*-------------------------------------------------------*/
 /*------------Auto Generated Version Macros -------------*/
 /*-------------------------------------------------------*/
@@ -66,30 +94,6 @@ extern "C" {
 #	undef	ENTRY_PLATFORM_POSIX
 #	define	ENTRY_PLATFORM_POSIX 1
 #endif
-
-#ifndef ENTRY_EXTERNC
-#	ifdef __cplusplus
-#		define ENTRY_EXTERNC extern "C"
-#	else 
-#		define ENTRY_EXTERNC
-#	endif
-#endif // ENTRY_EXTERNC
-
-#ifndef ENTRY_MAIN
-#	if ENTRY_PLATFORM_ANDROID
-#		define ENTRY_MAIN ENTRY_EXTERNC int entry_main
-#	else 
-#		define ENTRY_MAIN int main
-#	endif
-#endif // ENTRY_EXTERNC
-
-const char* Entry_GetPath();
-
-/// Attach the path of a dynamically loadable library to the system.
-int Entry_Attach(const char* _dir, const char* _name, const char* _prefix = "?", const char* _suffix = "?");
-
-/// Runs the specified entry setup. Returns 0 (Requests quiting) or 1 (Keep running).
-int Entry_Run();
 
 //int AttachLibExt(const char* _name, const char* _prefix = "?", const char* _suffix = "?", const std::string& _dir = "");
 

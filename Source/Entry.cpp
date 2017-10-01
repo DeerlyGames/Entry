@@ -10,6 +10,9 @@
 #include <iostream>
 
 #if ENTRY_PLATFORM_WINDOWS
+#	ifndef _CRT_SECURE_NO_WARNINGS
+#		define _CRT_SECURE_NO_WARNINGS
+#	endif // _CRT_SECURE_NO_WARNINGS
 #	ifndef WIN32_LEAN_AND_MEAN
 #		define WIN32_LEAN_AND_MEAN
 #	endif // WIN32_LEAN_AND_MEAN
@@ -88,6 +91,15 @@ std::wstring utf8toUtf16(const std::string & str)
 	typedef retVal (APIENTRY * PTR_##FuncName) Params; \
 	PTR_##FuncName FuncName = NULL;
 
+ENTRY_PROC(int, Init, (void))
+ENTRY_PROC(int, Update, (void))
+ENTRY_PROC(int, Reload, (void))
+static void* gLibrary;
+static std::string gLibName;
+static bool gNotifyEnabled = false;
+static int gFlags = 0;
+
+
 //////////////////////////////////////////////////////////////////////
 // Start: String Functions
 std::string StringAppend(const std::string& _str) {
@@ -165,7 +177,14 @@ int FileExists(const char* _path) {
 
 uint64_t FileSize(const char* _path)
 {
+#if ENTRY_PLATFORM_WINDOWS
+#	pragma warning( push )
+#	pragma warning( disable : 4996)
+#endif // ENTRY_PLATFORM_WINDOWS
 	FILE* file = fopen(_path, "rb");
+#if ENTRY_PLATFORM_WINDOWS
+#	pragma warning( pop )
+#endif // ENTRY_PLATFORM_WINDOWS
 	if (file) {
 		fseek(file, 0, SEEK_END);
 		uint64_t sizeWhole = ftell(file);
@@ -176,18 +195,6 @@ uint64_t FileSize(const char* _path)
 	else {
 		return 0;
 	}
-}
-
-uint64_t FileLastModified(const char* _path){
-#if ENTRY_PLATFORM_WINDOWS
-	return 0;
-#else
-	struct stat st;
-	if (stat(_path, &st) == 0)
-		return st.st_mtime;
-	else
-		return 0;
-#endif
 }
 
 
@@ -546,6 +553,22 @@ protected:
 	volatile bool shouldRun;
 };
 
+
+//////////////////////////////////////////////////////////////////////
+// Start: Logging
+
+static Mutex logMutex;
+
+void Log(const char* _info){
+	ScopedLock lock (logMutex);
+	if(!(gFlags & ENTRY_SILENT))
+		std::cout << _info << std::endl;
+}
+
+// End: Logging Functions
+//////////////////////////////////////////////////////////////////////
+
+
 #ifndef __APPLE__
 static const unsigned BUFFERSIZE = 4096;
 #endif
@@ -554,8 +577,9 @@ class FileWatcher : public Thread
 {
 public:
 	FileWatcher() :
+		timer(Timer()),
+		timerRem(Timer()),
 		removed(false),
-		added(false),
 		changed(false),
 		delay(1.0f)
 	{
@@ -579,7 +603,7 @@ public:
 #endif
 	}
 
-	bool StartWatching(const std::string& _path, const std::string& _file) {
+	bool StartWatching(const std::string& _path) {
 		StopWatching();
 #if ENTRY_PLATFORM_WINDOWS
 		dirHandle = (void*)CreateFileW(
@@ -697,47 +721,22 @@ public:
 				while (offset < bytesFilled)
 				{
 					const FILE_NOTIFY_INFORMATION* record = (FILE_NOTIFY_INFORMATION*)&buffer[offset];
-					switch (record->Action) {
-					case FILE_ACTION_ADDED | FILE_ACTION_MODIFIED: {
-						const wchar_t* src = record->FileName;
-						const size_t end = record->FileNameLength / 2;
-						std::wstring fileName(record->FileName, (record->FileNameLength / 2)+2);
-						std::wstring tmp = fileName;
-						std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-						AddChange(converter.to_bytes(tmp));
+					
+					std::wstring fileName(record->FileName, (record->FileNameLength)/2);
+					std::wstring tmp = fileName;
+					std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+					if(gLibName == converter.to_bytes(tmp)){
+						if(record->Action & (FILE_ACTION_ADDED | FILE_ACTION_MODIFIED))
+							SetChanged();
+						else if( record->Action & FILE_ACTION_REMOVED)
+							SetRemoved();
+						//else
+						//	printf("unhandled action %d\n", record->Action);
 					}
-					break;
-				//	default:
-				//		printf("unhandled action %d\n", record->Action);
-					}
-
 					if (!record->NextEntryOffset)
 						break;
 					else
 						offset += record->NextEntryOffset;
-
-					/*			FILE_NOTIFY_INFORMATION* record = (FILE_NOTIFY_INFORMATION*)&buffer[offset];
-								std::cout << record->Action << std::endl;
-								if (record->Action == FILE_ACTION_MODIFIED || record->Action == FILE_NOTIFY_CHANGE_SIZE || record->Action == FILE_ACTION_RENAMED_NEW_NAME)
-								{
-									std::string fileName;
-									const wchar_t* src = record->FileName;
-									const wchar_t* end = src + record->FileNameLength / 2;
-									while (src < end) {
-										std::wstring tmp = src;
-										std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-										fileName.append(converter.to_bytes(tmp));
-									}
-									fileName = fileName;
-								//	fileName = GetInternalPath(fileName);
-									AddChange(fileName);
-								}
-
-								if (!record->NextEntryOffset)
-									break;
-								else
-									offset += record->NextEntryOffset;
-							*/
 				}
 			}
 		}
@@ -794,47 +793,27 @@ public:
 #endif
 	}
 
-	void AddChange(const std::string& fileName)
-	{
-		ScopedLock lock(mutex);
-		changes[fileName].Reset();
-	}
-
-
-	bool IsAdded(){
-		ScopedLock lock(mutex);
-		return false;
-	}
-
 	bool IsChanged(){
 		ScopedLock lock(mutex);
+		unsigned delayMsec = (unsigned)(delay * 1000.0f);
+		if(changed && timer.GetMSec(false) >= delayMsec){
+			changed = false;
+			return true;
+		}
 		return false;
 	}
 
 	bool IsRemoved(){
 		ScopedLock lock(mutex);
+		unsigned delayMsec = (unsigned)(delay * 1000.0f);
+		if(removed && timerRem.GetMSec(false) >= delayMsec){
+			removed = false;
+			return true;
+		}
 		return false;
 	}
 
-	bool GetNextChange(const std::string& dest) {
-		ScopedLock lock(mutex);
-		unsigned delayMsec = (unsigned)(delay * 1000.0f);
-
-		if (changes.empty())
-			return false;
-		else {
-			// We erase from the changes on every iteration.
-			// This is sufficient for this case, where we only pull one item, which is the specific library.
-			for (std::map<std::string, Timer>::iterator i = changes.begin(); i != changes.end(); ++i){
-				if (i->second.GetMSec(false) >= delayMsec && dest == i->first) {
-					changes.erase(i);
-					return true;
-				}
-			}
-			return false;
-		}
-	}
-
+private:
 	class Timer
 	{
 	public:
@@ -869,31 +848,26 @@ public:
 		}
 
 	private:
-
 		unsigned startTime_;
 	};
 
-private:
-	void SetAdded(){
-		ScopedLock lock(mutex);
-		added = true;
+	void SetChanged(){
+		ScopedLock lock(mutex);		
+		changed = true;
+		timer.Reset();
 	}
 
 	void SetRemoved(){
 		ScopedLock lock(mutex);
 		removed = true;
-	}
-
-	void SetChanged(){
-		ScopedLock lock(mutex);		
-		changed = true;
+		timerRem.Reset();
 	}
 
 	std::string path;
 	Mutex mutex;
-	std::map<std::string, Timer> changes;
+	Timer timer;
+	Timer timerRem;
 	bool removed;
-	bool added;
 	bool changed;
 #if ENTRY_PLATFORM_WINDOWS
 	void * dirHandle;
@@ -923,6 +897,14 @@ private:
 			lastModified(_lastModified)
 		{}
 
+		static uint64_t fileLastModified(const char* _path){
+			struct stat st;
+			if (stat(_path, &st) == 0)
+				return st.st_mtime;
+			else
+				return 0;
+		}
+
 		static void scan(ItemInfoMap& _entries, const std::string& _path){
 			DirIter it(_path);
 			while(it.HasNext()){
@@ -930,7 +912,7 @@ private:
 				std::cout << FileSize(res.c_str()) <<std::endl;
 				if(FileExists(res.c_str())){
 					_entries[it.GetName()] = ItemInfo(	it.GetName(), 
-														FileLastModified(res.c_str()), 
+														fileLastModified(res.c_str()), 
 														FileSize(res.c_str()));//ItemInfo(*it);
 				}
 				it.Next();	
@@ -1090,13 +1072,7 @@ const char* GetDefaultSuffix() {
 #endif
 }
 
-ENTRY_PROC(int, Init, (void))
-ENTRY_PROC(int, Update, (void))
-ENTRY_PROC(int, Reload, (void))
-static void* library;
 static FileWatcher fileWatcher;
-static std::string LibName;
-static bool notifyEnabled = false;
 
 int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, const char * _suffix)
 {
@@ -1104,11 +1080,11 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 	const std::string prefix = (_prefix[0] == '?') ? GetDefaultPrefix() : _prefix;
 	const std::string suffix = (_suffix[0] == '?') ? GetDefaultSuffix() : _suffix;
 	std::string dir = StringAppend((_dir[0] == '\0') ? Entry_GetDir() : _dir);
-	LibName = prefix + std::string(_name) + suffix;
-	DestroyLib(library);
+	gLibName = prefix + std::string(_name) + suffix;
+	DestroyLib(gLibrary);
 
-	// Check if we can find the library at all.
-	std::string path = dir + LibName;
+	// Check if we can find the gLibrary at all.
+	std::string path = dir + gLibName;
 	if (!FileExists(path.c_str())) {
 		dir = GetCurrentPath();
 		path = dir + prefix + std::string(_name) + suffix;
@@ -1118,48 +1094,53 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 	}
 
 	// Move lib.
-	const std::string tmpLib = GetTmpDir() + LibName;
+	const std::string tmpLib = GetTmpDir() + gLibName;
 	FileDelete(tmpLib);
 	FileCopy(path, tmpLib);
+	
+	gNotifyEnabled = fileWatcher.StartWatching(dir);
 
-	notifyEnabled = fileWatcher.StartWatching(dir, LibName);
-//	fileWatcher.AddChange(LibName);
+	gLibrary = LoadLib(gLibrary, tmpLib);
+		
+	Log((std::string("Attaching itself to: ")+gLibName+std::string(" at ")+dir).c_str());
 
-	library = LoadLib(library, tmpLib);
+	if(!gLibrary)
+		Log((std::string("Unsuccesfull attachment...")).c_str());
 
-	Init = (PTR_Init)LoadFunction(library, "Init");
+	Init = (PTR_Init)LoadFunction(gLibrary, "Init");
 
 	if (Init){ if (Init()) return 2; };
 
-	Reload = (PTR_Reload)LoadFunction(library, "Reload");
-	Update = (PTR_Update)LoadFunction(library, "Update");
+	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
+	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
 
 	if (Reload){ if (Reload()>0) return 2;};
 
-	return (library == 0);
+	return (gLibrary == 0);
 }
 
-int Entry_Run()
+int Entry_Run(int _flags)
 {
-	if (library != 0) {
-		// Check if library was changed reload.
-		if (notifyEnabled && fileWatcher.GetNextChange(LibName)) {
-			DestroyLib(library);
-			const std::string tmpLib = GetTmpDir() + LibName;
+	gFlags = _flags;
+	if (gLibrary != 0) {
+		// Check if gLibrary was changed reload.
+		if (gNotifyEnabled && fileWatcher.IsChanged()) {
+			DestroyLib(gLibrary);
+			const std::string tmpLib = GetTmpDir() + gLibName;
 			FileDelete(tmpLib);
-			FileCopy(fileWatcher.GetPath()+LibName, tmpLib);
+			FileCopy(fileWatcher.GetPath()+gLibName, tmpLib);
 
-			library = LoadLib(library, tmpLib);
+			gLibrary = LoadLib(gLibrary, tmpLib);
 		
-			Reload = (PTR_Reload)LoadFunction(library, "Reload");
-			Update = (PTR_Update)LoadFunction(library, "Update");
+			Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
+			Update = (PTR_Update)LoadFunction(gLibrary, "Update");
 
 			if (Reload) return !Reload();
 		}
 
 		if(Update) return !Update();
 
-		// User wants the library to quit.
+		// User wants the gLibrary to quit.
 		if (!Reload && !Update) return 0;
 		return 1;
 	}
