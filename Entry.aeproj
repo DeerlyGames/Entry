@@ -15,7 +15,7 @@ end
 
 configuration "Debug"
 	symbols "On"
-	flags{ "ExtraWarnings" }
+	warnings "Extra"
 
 configuration "Release"
 	optimize "Full"
@@ -28,10 +28,11 @@ solution "Entry"
 
 project "EntryMain"
 	location "Build"
-	objdir( "%{cfg.location}/".._OPTIONS["platform"] )
+	objdir( "%{cfg.location}/%{cfg.systemarch}" )
 	targetdir "%{cfg.objdir}/%{cfg.buildcfg}"
 	targetname "Entry"
 	kind "ConsoleApp"
+
 	files
 	{ 
 		"Source/**.cpp",
@@ -46,21 +47,21 @@ project "EntryMain"
 
 group "Samples"
 project "HelloWorld"
-	location "Build"
-	objdir( "%{cfg.location}/".._OPTIONS["platform"] )
+	location 	"Build"
+	objdir		"%{cfg.location}/%{cfg.systemarch}"
 	targetdir	"%{cfg.objdir}/%{cfg.buildcfg}"
-	kind "SharedLib"
+	kind 		"SharedLib"
 	files
 	{ 
 		"Sample/HelloWorld.cpp"
 	}
 
 project "SimpleLoop"
-	location "Build"
-	objdir( "%{cfg.location}/".._OPTIONS["platform"] )
+	location 	"Build"
+	objdir		"%{cfg.location}/%{cfg.systemarch}"
 	targetdir	"%{cfg.objdir}/%{cfg.buildcfg}"
-	kind "SharedLib"
-	files { "Sample/SimpleLoop.cpp" }
+	kind 		"SharedLib"
+	files 		{ "Sample/SimpleLoop.cpp" }
 
 if _ACTION == "clean" then
 	os.rmdir("Entry.xcworkspace")

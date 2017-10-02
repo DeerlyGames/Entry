@@ -56,6 +56,7 @@ std::wstring utf8toUtf16(const std::string & str)
 
 #else
 #	include <fcntl.h>
+#	include <dirent.h>
 #	include <dlfcn.h> /*dlopen*/
 #	include <pthread.h>
 #   include <pwd.h> /* getpwuid */
@@ -72,7 +73,6 @@ std::wstring utf8toUtf16(const std::string & str)
 #	include <sys/inotify.h>
 #elif ENTRY_PLATFORM_MACOS
 #	include <atomic>
-#	include <dirent.h>
 #	include <mach-o/dyld.h>
 #	include <sys/event.h>
 #elif ENTRY_PLATFORM_WEB
@@ -247,7 +247,7 @@ void DestroyLib(void* _handle) {
 //////////////////////////////////////////////////////////////////////
 // Start: FileWatcher & Thread
 
-#if ENTRY_PLATFORM_MACOS
+#if ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_MACOS
 class RefCounted
 {
 public:
@@ -278,13 +278,35 @@ private:
 
 		~AtomicInteger(){}
 
-		int GetValue() const{ return counter.load(); }
+		int GetValue() const{ 
+#if	ENTRY_PLATFORM_MACOS
+			return counter.load();
+#else // ENTRY_PLATFORM_LINUX 
+			return counter;
+#endif
+		}
 
-		int operator ++ () { return ++counter; }
+		int operator ++ () { 
+#if ENTRY_PLATFORM_MACOS
+			return ++counter;
+#else
+			return __sync_add_and_fetch(&counter, 1);
+#endif
+		}
 
-		int operator -- () { return --counter; }
-		
-		std::atomic<int> counter;		
+		int operator -- () { 
+#if ENTRY_PLATFORM_MACOS
+			return --counter;
+#else
+			return __sync_sub_and_fetch(&counter, 1);
+#endif 
+		}
+#if ENTRY_PLATFORM_MACOS
+	typedef std::atomic<int> Type;
+#else
+	typedef int Type;
+#endif
+	Type counter;	
 	};
 
 	mutable AtomicInteger counter;	
@@ -584,6 +606,9 @@ public:
 		delay(1.0f)
 	{
 #if ENTRY_PLATFORM_LINUX
+		backupWatcher = false;
+		lastmod = 0;
+		lastSize = 0;
 		watchHandle = -1;
 		watchHandle = inotify_init();
 #elif ENTRY_PLATFORM_MACOS
@@ -627,11 +652,12 @@ public:
 		int flags = IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVE;
 		int Handle = inotify_add_watch(watchHandle, RemoveTrailingSlash(_path).c_str(), flags);
 		if (Handle == -1) {
-			printf("Failed inotify: %s err:%d\n", _path.c_str(), errno);
-			return false;
+			Log(std::string("Failed inotify: using backup solution.").c_str());
+			backupWatcher = true;
+		}else{
+			dirHandle[Handle] = "";
 		}
 
-		dirHandle[Handle] = "";
 		path = StringAppend(_path);
 		Run();
 		return true;
@@ -742,7 +768,7 @@ public:
 		}
 #elif ENTRY_PLATFORM_LINUX
 		unsigned char buffer[BUFFERSIZE];
-		while (shouldRun) {
+		while (shouldRun && !backupWatcher) {
 			int i = 0;
 			int length = (int)read(watchHandle, buffer, sizeof(buffer));
 
@@ -753,11 +779,16 @@ public:
 
 				if (ev->len > 0) {
 					if (ev->mask & IN_MODIFY || ev->mask & IN_MOVE) {
-						AddChange(dirHandle[ev->wd] + ev->name);
+						std::cout << dirHandle[ev->wd] + ev->name << std::endl; 
+						//AddChange(dirHandle[ev->wd] + ev->name);
 					}
 				}
 				i += sizeof(inotify_event) + ev->len;
 			}
+		}
+		while(backupWatcher){
+		//	if() 
+		//	Log( (path+gLibName).c_str() );
 		}
 #elif ENTRY_PLATFORM_MACOS
 		while (!_stopped)
@@ -873,8 +904,12 @@ private:
 	void * dirHandle;
 #elif ENTRY_PLATFORM_LINUX
 	std::map<int, std::string> dirHandle;
+	bool backupWatcher;
+	uint64_t lastmod;
+	uint64_t lastSize;
 	int watchHandle;
-#elif ENTRY_PLATFORM_MACOS
+#endif
+#if ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_MACOS
 	class ItemInfo;
 	typedef std::map< std::string, ItemInfo> ItemInfoMap;
 
