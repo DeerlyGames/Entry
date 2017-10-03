@@ -10,7 +10,7 @@
 #	if defined(_WIN32)
 #		define ENTRY_INTERFACE ENTRY_EXTERNC __declspec(dllexport)
 #	else
-#		define ENTRY_INTERFACE ENTRY_EXTERNC __attribute__((visibility("default")))
+#		define ENTRY_INTERFACE ENTRY_EXTERNC //__attribute__((visibility("default")))
 #	endif
 #endif // ENTRY_INTERFACE
 
@@ -27,6 +27,6 @@ ENTRY_INTERFACE int Reload()
 // You are responsible for delaying the loop.
 ENTRY_INTERFACE int Update()
 {
-//	std::cout << "Update" << std::endl;
+	std::cout << "Update" << std::endl;
 	return 0;
 }

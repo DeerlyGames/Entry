@@ -1,6 +1,19 @@
 #ifndef DEERLYGAMES_ENTRY_H
 #define DEERLYGAMES_ENTRY_H
 
+#	ifdef __cplusplus
+#		define ENTRY_EXTERNC extern "C"
+#	else 
+#		define ENTRY_EXTERNC extern
+#	endif
+
+#ifdef __ANDROID__
+ENTRY_EXTERNC int entry_main(int argc, char *argv[]);
+#	define ENTRY_MAIN ENTRY_EXTERNC int SDL_main
+#else 
+#	define ENTRY_MAIN int main
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,23 +21,9 @@ extern "C" {
 #define ENTRY_SILENT	1
 #define ENTRY_KEEPALIVE 2
 
-#ifndef ENTRY_EXTERNC
-#	ifdef __cplusplus
-#		define ENTRY_EXTERNC extern "C"
-#	else 
-#		define ENTRY_EXTERNC
-#	endif
-#endif // ENTRY_EXTERNC
-
-#ifndef ENTRY_MAIN
-#	if ENTRY_PLATFORM_ANDROID
-#		define ENTRY_MAIN ENTRY_EXTERNC int entry_main
-#	else 
-#		define ENTRY_MAIN int main
-#	endif
-#endif // ENTRY_EXTERNC
 
 const char* Entry_GetPath();
+
 
 /// Attach the path of a dynamically loadable gLibrary to the system.
 int Entry_Attach(const char* _dir, const char* _name, const char* _prefix = "?", const char* _suffix = "?");
@@ -32,6 +31,7 @@ int Entry_Attach(const char* _dir, const char* _name, const char* _prefix = "?",
 /// Runs the specified entry setup. Returns 0 (Requests quiting) or 1 (Keep running).
 int Entry_Run(int _flags = 0);
 
+void Entry_WebRun();
 
 /*-------------------------------------------------------*/
 /*------------Auto Generated Version Macros -------------*/

@@ -75,8 +75,10 @@ std::wstring utf8toUtf16(const std::string & str)
 #	include <atomic>
 #	include <mach-o/dyld.h>
 #	include <sys/event.h>
+#elif ENTRY_PLATFORM_ANDROID
+#	include <android/log.h>
 #elif ENTRY_PLATFORM_WEB
-#	define PATH_MAX	256
+#	include <emscripten.h>
 #endif
 
 #ifndef APIENTRY
@@ -206,7 +208,7 @@ void* LoadLib(void* _handle, const std::string& _path) {
 #if ENTRY_PLATFORM_WINDOWS
 	_handle = (void*)::LoadLibraryW(utf8toUtf16(_path).c_str());
 #else // ENTRY_PLATFORM_POSIX
-	_handle = (void *)dlopen(_path.c_str(), RTLD_LOCAL | RTLD_LAZY);
+	_handle = (void *)dlopen(_path.c_str(), RTLD_LOCAL | RTLD_NOW);
 	//    loadError = (const char *) dlerror();
 #endif
 	return _handle;
@@ -234,7 +236,7 @@ void DestroyLib(void* _handle) {
 	{
 #if ENTRY_PLATFORM_POSIX
 		dlclose(_handle);
-#elif ENTRY_PLATFORM_WINDOWS || AE_PLATFORM_WINDOWSPHONE
+#elif ENTRY_PLATFORM_WINDOWS
 		::FreeLibrary((HMODULE)_handle);
 #endif
 		_handle = NULL;
@@ -247,7 +249,7 @@ void DestroyLib(void* _handle) {
 //////////////////////////////////////////////////////////////////////
 // Start: FileWatcher & Thread
 
-#if ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_MACOS
+#if ENTRY_PLATFORM_ANDROID || ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_MACOS || ENTRY_PLATFORM_WEB
 class RefCounted
 {
 public:
@@ -581,10 +583,15 @@ protected:
 
 static Mutex logMutex;
 
-void Log(const char* _info){
+inline void Log(const char* _info){
+#if defined (__ANDROID__)//AE_PLATFORM_ANDROID
+	__android_log_print(ANDROID_LOG_ERROR, "ENTRY", "%s", _info);
+#else		
 	ScopedLock lock (logMutex);
-	if(!(gFlags & ENTRY_SILENT))
+	if(!(gFlags & ENTRY_SILENT)){	
 		std::cout << _info << std::endl;
+	}
+#endif
 }
 
 // End: Logging Functions
@@ -679,10 +686,16 @@ public:
 		_stopped = false;
 		Run();
 		return true;
+#else // ENTRY_PLATFORM_WEB
+		return true;
 #endif
 	}
 
 	void StopWatching() {
+#if ENTRY_PLATFORM_ANDROID || ENTRY_PLATFORM_WEB 
+		path.clear();
+		return; // No functionality.
+#endif		
 		if (thandle)
 		{
 			shouldRun = false;
@@ -869,7 +882,7 @@ private:
 		{
 #ifdef _WIN32
 			return (unsigned)timeGetTime();
-#elif __EMSCRIPTEN__
+#elif defined(__EMSCRIPTEN__)
 			return (unsigned)emscripten_get_now();
 #else
 			struct timeval time;
@@ -984,7 +997,7 @@ const char* Entry_GetPath() {
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 	appDirectory = converter.to_bytes(tmp);
 	return _strdup(appDirectory.c_str());
-#elif ENTRY_PLATFORM_LINUX
+#elif ENTRY_PLATFORM_ANDROID || ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_WEB
 	if (!appDirectory.empty()) return strdup(appDirectory.c_str());
 
 	char path[PATH_MAX];
@@ -1090,16 +1103,18 @@ const char* GetTmpDir() {
 }
 
 const char* GetDefaultPrefix() {
-#if ENTRY_PLATFORM_ANDROID || ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_MACOS
-	return "lib";
-#else
+#if ENTRY_PLATFORM_WINDOWS
 	return "";
+#else
+	return "lib";
 #endif
 }
 
 const char* GetDefaultSuffix() {
 #if ENTRY_PLATFORM_WINDOWS
 	return ".dll";
+#elif ENTRY_PLATFORM_WEB
+	return ".js";
 #elif ENTRY_PLATFORM_MACOS
 	return ".dylib";
 #else
@@ -1119,12 +1134,21 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 	DestroyLib(gLibrary);
 
 	// Check if we can find the gLibrary at all.
+#if !ENTRY_PLATFORM_ANDROID 
 	std::string path = dir + gLibName;
+	Log((path).c_str());
 	if (!FileExists(path.c_str())) {
 		dir = GetCurrentPath();
 		path = dir + prefix + std::string(_name) + suffix;
+		Log((path).c_str());
 		if (!FileExists(path.c_str())) {
-			return 1;
+			dir = "";
+			path = dir + prefix + std::string(_name) + suffix;
+			Log((path).c_str());
+			if (!FileExists(path.c_str())) {
+				Log((std::string("Unable to find file.")).c_str());
+				return 1;
+			}
 		}
 	}
 
@@ -1136,9 +1160,13 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 	gNotifyEnabled = fileWatcher.StartWatching(dir);
 
 	gLibrary = LoadLib(gLibrary, tmpLib);
-		
-	Log((std::string("Attaching itself to: ")+gLibName+std::string(" at ")+dir).c_str());
 
+#else // ENTRY_PLATFORM_ANDROID
+	dir = "";
+	fileWatcher.StartWatching(dir);
+	gLibrary = LoadLib(gLibrary, dir+gLibName);
+#endif
+		
 	if(!gLibrary)
 		Log((std::string("Unsuccesfull attachment...")).c_str());
 
@@ -1180,4 +1208,9 @@ int Entry_Run(int _flags)
 		return 1;
 	}
 	return 0;
+}
+
+void Entry_WebRun()
+{
+	Entry_Run();
 }

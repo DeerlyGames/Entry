@@ -26,30 +26,9 @@ solution "Entry"
 	configurations{ "Debug", "Release" }
 	language "C++"
 
-project "EntryMain"
-	location "Build"
-	objdir( "%{cfg.location}/%{cfg.systemarch}" )
-	targetdir "%{cfg.objdir}/%{cfg.buildcfg}"
-	targetname "Entry"
-	kind "ConsoleApp"
-
-	files
-	{ 
-		"Source/**.cpp",
-		"Source/**.h"
-	}
-
-	filter {"system:linux"}
-		links{ "dl", "pthread" }
-	filter {"system:windows"}
-		files {"Source/Entry.rc"}
-	filter{}
-
 group "Samples"
 project "HelloWorld"
 	location 	"Build"
-	objdir		"%{cfg.location}/%{cfg.systemarch}"
-	targetdir	"%{cfg.objdir}/%{cfg.buildcfg}"
 	kind 		"SharedLib"
 	files
 	{ 
@@ -58,10 +37,42 @@ project "HelloWorld"
 
 project "SimpleLoop"
 	location 	"Build"
-	objdir		"%{cfg.location}/%{cfg.systemarch}"
-	targetdir	"%{cfg.objdir}/%{cfg.buildcfg}"
 	kind 		"SharedLib"
 	files 		{ "Sample/SimpleLoop.cpp" }
+
+if string.contains(_OPTIONS["target"], "Android") then 
+	include "SDL2/SDL2"
+end
+
+group ""
+project "EntryMain"
+	location "Build"
+	targetname "Entry"
+	kind "ConsoleApp"
+
+	files
+	{ 
+		"Source/**.cpp",
+		"Source/**.h"
+	}
+	includedirs
+	{
+		"SDL2/include",
+		"SDL2/src"
+	}
+
+	filter { "system:android" }
+		links{ "android", "GLESv1_CM", "GLESv2", "dl", "log"}
+		files{"Source/SDL_android_main.c"}
+		links{ "SDL2" }
+
+	filter {"system:linux"}
+		links{ "dl", "pthread" }
+	filter {"system:windows"}
+		files {"Source/Entry.rc"}
+	filter {"system:web"}
+		linkoptions{"-s MAIN_MODULE=1 --embed-file Web/Debug/libSimpleLoop.js"}	
+	filter{}
 
 if _ACTION == "clean" then
 	os.rmdir("Entry.xcworkspace")
