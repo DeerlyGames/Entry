@@ -24,9 +24,10 @@ extern "C" {
 
 const char* Entry_GetPath();
 
+int Entry_Attach(const char* _path);
 
 /// Attach the path of a dynamically loadable gLibrary to the system.
-int Entry_Attach(const char* _dir, const char* _name, const char* _prefix = "?", const char* _suffix = "?");
+int Entry_AttachExt(const char* _dir, const char* _name, const char* _prefix = "?", const char* _suffix = "?");
 
 /// Runs the specified entry setup. Returns 0 (Requests quiting) or 1 (Keep running).
 int Entry_Run(int _flags = 0);
@@ -43,7 +44,7 @@ void Entry_WebRun();
 #define ENTRY_VERSION_MINOR 2
 #endif
 #ifndef ENTRY_VERSION_PATCH
-#define ENTRY_VERSION_PATCH 1
+#define ENTRY_VERSION_PATCH 2
 #endif
 
 #define ENTRY_PLATFORM_ANDROID 			0

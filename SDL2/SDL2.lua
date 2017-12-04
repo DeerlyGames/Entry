@@ -50,4 +50,3 @@
 				"src/timer/unix/*.c", -- Maybe not needed
 				"src/video/android/*.c"
 				}
-		pic "On"

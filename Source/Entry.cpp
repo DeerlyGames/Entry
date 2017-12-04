@@ -1124,7 +1124,7 @@ const char* GetDefaultSuffix() {
 
 static FileWatcher fileWatcher;
 
-int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, const char * _suffix)
+int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, const char * _suffix)
 {
 	// If empty use platform specific.
 	const std::string prefix = (_prefix[0] == '?') ? GetDefaultPrefix() : _prefix;
@@ -1152,6 +1152,55 @@ int Entry_Attach(const char* _dir, const char* _name, const char * _prefix, cons
 		}
 	}
 
+	// Move lib.
+	const std::string tmpLib = GetTmpDir() + gLibName;
+	FileDelete(tmpLib);
+	FileCopy(path, tmpLib);
+	
+	gNotifyEnabled = fileWatcher.StartWatching(dir);
+
+	gLibrary = LoadLib(gLibrary, tmpLib);
+
+#else // ENTRY_PLATFORM_ANDROID
+	dir = "";
+	fileWatcher.StartWatching(dir);
+	gLibrary = LoadLib(gLibrary, dir+gLibName);
+#endif
+		
+	if(!gLibrary)
+		Log((std::string("Unsuccesfull attachment...")).c_str());
+
+	Init = (PTR_Init)LoadFunction(gLibrary, "Init");
+
+	if (Init){ if (Init()) return 2; };
+
+	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
+	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
+
+	if (Reload){ if (Reload()>0) return 2;};
+
+	return (gLibrary == 0);
+}
+
+int Entry_Attach(const char* _path)
+{
+
+	std::string path = StringReplace(std::string(_path), "\\", "/");
+	std::string dir = path.substr(0, path.find_last_of("/")+1);
+	gLibName = path.substr(path.find_last_of("/")+1);
+//	std::cout << path << std::endl;
+	//std::cout << dir << std::endl;
+
+	DestroyLib(gLibrary);
+
+	// Check if we can find the gLibrary at all.
+#if !ENTRY_PLATFORM_ANDROID 
+	Log((path).c_str());
+	
+	if (!FileExists(_path)) {
+		Log((std::string("Unable to find file.")).c_str());
+		return 1;
+	}
 	// Move lib.
 	const std::string tmpLib = GetTmpDir() + gLibName;
 	FileDelete(tmpLib);

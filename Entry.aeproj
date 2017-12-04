@@ -55,11 +55,6 @@ project "EntryMain"
 		"Source/**.cpp",
 		"Source/**.h"
 	}
-	includedirs
-	{
-		"SDL2/include",
-		"SDL2/src"
-	}
 
 	filter { "system:android" }
 		links{ "android", "GLESv1_CM", "GLESv2", "dl", "log"}
