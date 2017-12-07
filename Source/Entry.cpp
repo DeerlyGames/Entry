@@ -1184,13 +1184,12 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, c
 
 int Entry_Attach(const char* _path)
 {
-
-	std::string path = StringReplace(std::string(_path), "\\", "/");
-	std::string dir = path.substr(0, path.find_last_of("/")+1);
-	gLibName = path.substr(path.find_last_of("/")+1);
-//	std::cout << path << std::endl;
-	//std::cout << dir << std::endl;
-
+	std::string path = _path;
+//	std::string path = StringReplace(std::string(_path), "\\", "/");
+	std::string dir = path.substr(0, path.find_last_of("\\")+1);
+	gLibName = path.substr(path.find_last_of("\\")+1);
+	
+	std::cout << dir << std::endl;
 	DestroyLib(gLibrary);
 
 	// Check if we can find the gLibrary at all.
@@ -1204,10 +1203,17 @@ int Entry_Attach(const char* _path)
 	// Move lib.
 	const std::string tmpLib = GetTmpDir() + gLibName;
 	FileDelete(tmpLib);
-	FileCopy(path, tmpLib);
+	FileCopy(std::string(_path), tmpLib);
 	
-	gNotifyEnabled = fileWatcher.StartWatching(dir);
+	if(!dir.empty()){
+		gNotifyEnabled = fileWatcher.StartWatching(dir);	
+	}else{
+		std::cout<< Entry_GetDir() << std::endl;
+		gNotifyEnabled = fileWatcher.StartWatching(Entry_GetDir());	
 
+	}
+
+//	std::cout << tmpLib << std::endl;
 	gLibrary = LoadLib(gLibrary, tmpLib);
 
 #else // ENTRY_PLATFORM_ANDROID
@@ -1225,6 +1231,9 @@ int Entry_Attach(const char* _path)
 
 	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
+
+	std::cout << Reload << std::endl;
+	std::cout << Update << std::endl;
 
 	if (Reload){ if (Reload()>0) return 2;};
 

@@ -44,7 +44,7 @@ void Entry_WebRun();
 #define ENTRY_VERSION_MINOR 2
 #endif
 #ifndef ENTRY_VERSION_PATCH
-#define ENTRY_VERSION_PATCH 2
+#define ENTRY_VERSION_PATCH 1
 #endif
 
 #define ENTRY_PLATFORM_ANDROID 			0
