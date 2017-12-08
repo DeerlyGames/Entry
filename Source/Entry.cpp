@@ -95,8 +95,10 @@ std::wstring utf8toUtf16(const std::string & str)
 
 ENTRY_PROC(int, Init, (void))
 ENTRY_PROC(int, Update, (void))
-ENTRY_PROC(int, Reload, (void))
+ENTRY_PROC(int, Reload, (void* _userData))
+ENTRY_PROC(void*, UserData, (void))
 static void* gLibrary;
+static void* guserData;
 static std::string gLibName;
 static bool gNotifyEnabled = false;
 static int gFlags = 0;
@@ -1177,7 +1179,7 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, c
 	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
 
-	if (Reload){ if (Reload()>0) return 2;};
+	if (Reload){ if (Reload(guserData)>0) return 2;};
 
 	return (gLibrary == 0);
 }
@@ -1189,7 +1191,6 @@ int Entry_Attach(const char* _path)
 	std::string dir = path.substr(0, path.find_last_of("\\")+1);
 	gLibName = path.substr(path.find_last_of("\\")+1);
 	
-	std::cout << dir << std::endl;
 	DestroyLib(gLibrary);
 
 	// Check if we can find the gLibrary at all.
@@ -1205,15 +1206,11 @@ int Entry_Attach(const char* _path)
 	FileDelete(tmpLib);
 	FileCopy(std::string(_path), tmpLib);
 	
-	if(!dir.empty()){
+	if(!dir.empty())
 		gNotifyEnabled = fileWatcher.StartWatching(dir);	
-	}else{
-		std::cout<< Entry_GetDir() << std::endl;
+	else
 		gNotifyEnabled = fileWatcher.StartWatching(Entry_GetDir());	
-
-	}
-
-//	std::cout << tmpLib << std::endl;
+	
 	gLibrary = LoadLib(gLibrary, tmpLib);
 
 #else // ENTRY_PLATFORM_ANDROID
@@ -1229,13 +1226,10 @@ int Entry_Attach(const char* _path)
 
 	if (Init){ if (Init()) return 2; };
 
-	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
+//	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
 
-	std::cout << Reload << std::endl;
-	std::cout << Update << std::endl;
-
-	if (Reload){ if (Reload()>0) return 2;};
+//	if (Reload){ if (Reload(guserData)>0) return 2;};
 
 	return (gLibrary == 0);
 }
@@ -1246,6 +1240,13 @@ int Entry_Run(int _flags)
 	if (gLibrary != 0) {
 		// Check if gLibrary was changed reload.
 		if (gNotifyEnabled && fileWatcher.IsChanged()) {
+			UserData = (PTR_UserData)LoadFunction(gLibrary, "UserData");
+			std::cout << UserData << std::endl;
+			if(UserData){ 
+				guserData = UserData();
+				std::cout << guserData << std::endl;
+			}
+
 			DestroyLib(gLibrary);
 			const std::string tmpLib = GetTmpDir() + gLibName;
 			FileDelete(tmpLib);
@@ -1256,7 +1257,7 @@ int Entry_Run(int _flags)
 			Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 			Update = (PTR_Update)LoadFunction(gLibrary, "Update");
 
-			if (Reload) return !Reload();
+			if (Reload) return !Reload(guserData);
 		}
 
 		if(Update) return !Update();
