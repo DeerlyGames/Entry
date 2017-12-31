@@ -95,7 +95,8 @@ std::wstring utf8toUtf16(const std::string & str)
 
 ENTRY_PROC(int, Init, (void))
 ENTRY_PROC(int, Update, (void))
-ENTRY_PROC(int, Reload, (void* _userData))
+ENTRY_PROC(int, Reload, (void))
+ENTRY_PROC(void, Unload, (void))
 ENTRY_PROC(void*, UserData, (void))
 static void* gLibrary;
 static void* guserData;
@@ -1176,10 +1177,10 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, c
 
 	if (Init){ if (Init()) return 2; };
 
-	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
+//	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
 
-	if (Reload){ if (Reload(guserData)>0) return 2;};
+//	if (Reload){ if (Reload()>0) return 2;};
 
 	return (gLibrary == 0);
 }
@@ -1240,12 +1241,10 @@ int Entry_Run(int _flags)
 	if (gLibrary != 0) {
 		// Check if gLibrary was changed reload.
 		if (gNotifyEnabled && fileWatcher.IsChanged()) {
-			UserData = (PTR_UserData)LoadFunction(gLibrary, "UserData");
-			std::cout << UserData << std::endl;
-			if(UserData){ 
-				guserData = UserData();
-				std::cout << guserData << std::endl;
-			}
+
+			Unload = (PTR_Unload)LoadFunction(gLibrary, "Unload");
+			if (Unload) Unload();
+
 
 			DestroyLib(gLibrary);
 			const std::string tmpLib = GetTmpDir() + gLibName;
@@ -1257,7 +1256,7 @@ int Entry_Run(int _flags)
 			Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 			Update = (PTR_Update)LoadFunction(gLibrary, "Update");
 
-			if (Reload) return !Reload(guserData);
+			if (Reload) return !Reload();
 		}
 
 		if(Update) return !Update();

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string>
 
+
 ENTRY_MAIN(int argc, char *argv[])
 {
 	if(argc!=2){

@@ -13,6 +13,16 @@
 #		define ENTRY_INTERFACE ENTRY_EXTERNC
 #	endif
 #endif // ENTRY_INTERFACE
+#include <stdlib.h>
+#include <stdio.h>
+#define malloc(x) my_malloc(x)
+
+void * my_malloc(size_t nbytes)
+{
+   printf("my_malloc\n");
+   return "32";
+}
+
 
 #include <iostream>
 
@@ -20,7 +30,7 @@
 ENTRY_INTERFACE int Init()
 {
 	std::cout << "Hello World" << std::endl;
-
+	malloc(32);
 	return 0;
 }
 

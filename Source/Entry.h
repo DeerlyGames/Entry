@@ -1,6 +1,8 @@
 #ifndef DEERLYGAMES_ENTRY_H
 #define DEERLYGAMES_ENTRY_H
 
+#include <stdint.h>
+
 #	ifdef __cplusplus
 #		define ENTRY_EXTERNC extern "C"
 #	else 
@@ -19,8 +21,6 @@ extern "C" {
 #endif
 
 #define ENTRY_SILENT	1
-#define ENTRY_KEEPALIVE 2
-
 
 const char* Entry_GetPath();
 
@@ -33,6 +33,7 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char* _prefix = "
 int Entry_Run(int _flags = 0);
 
 void Entry_WebRun();
+
 
 /*-------------------------------------------------------*/
 /*------------Auto Generated Version Macros -------------*/
