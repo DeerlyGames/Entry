@@ -7,14 +7,14 @@
 </p>
 
 ## Overview
-For developers faster iteration results in more room for creativity. This project addresses two causes of slowdowns application reboots and compilation time. <br/> **Entry** is a lightweight entrypoint for applications written in C/C++ or any language that can export C style functions into dynamically loadable libraries. **Entry** is responsible for hot reloading your code giving immediate feedback.<br/>
+For developers faster iteration results in more room for creativity. This project addresses two causes of development slowdowns; application reboots and compilation time. <br/> **Entry** is a lightweight entrypoint for applications written in C/C++ or any language that can export C style functions into dynamically loadable libraries. **Entry** is responsible for hot reloading your code giving immediate feedback.<br/>
 
 ## Documentation
 ### Introduction
 ### Functions
 ```c
 // Attach the path of a dynamically loadable library to the system.
-int Entry_Attach(const char* _dir, const char* _name, const char* _prefix, const char* _suffix)
+int Entry_Attach_Ext(const char* _dir, const char* _name, const char* _prefix, const char* _suffix)
 ```
 | Type   | Name                | Description  |
 | ------ | ------------------- | ------------ |

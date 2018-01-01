@@ -5,26 +5,29 @@ ENTRY_VERSION_PATCH=1
 
 ENTRY_VERSION=ENTRY_VERSION_MAJOR.."."..ENTRY_VERSION_MINOR.."."..ENTRY_VERSION_PATCH
 
----------------  Visual Studio  ---------------------
-if string.startswith( _ACTION, "vs" ) then
-buildoptions{"/FS"}
-flags { "StaticRuntime", "MultiProcessorCompile" }
-------------------  Makefile  -----------------------
---elseif string.startswith( _ACTION, "gmake" ) then
-end
-
-configuration "Debug"
-	symbols "On"
-	warnings "Extra"
-
-configuration "Release"
-	optimize "Full"
-	flags{"LinkTimeOptimization"}
-
 solution "Entry"
-	location ""
 	configurations{ "Debug", "Release" }
+	flags { "StaticRuntime" }
 	language "C++"
+	location ""
+
+filter "configurations:Debug"
+	warnings 	"Extra"
+	symbols     "On"
+	defines {"DEBUG"}
+
+filter "configurations:Release"
+	flags       { "NoBufferSecurityCheck", "NoRuntimeChecks" }
+	optimize    "Full"
+
+filter { "system:macosx", "action:gmake" }
+	toolset "clang"
+	buildoptions { "-mmacosx-version-min=10.9", "-stdlib=libc++" }
+	linkoptions  { "-mmacosx-version-min=10.9" }	
+
+filter { "system:linux" }
+	linkoptions { "-rdynamic -static-libgcc -static-libstdc++" }
+
 
 group "Samples"
 project "HelloWorld"

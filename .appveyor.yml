@@ -1,0 +1,28 @@
+shallow_clone: true
+
+os:
+ - Visual Studio 2017
+
+configuration:
+ - Release
+
+install:
+ - aemake vs2015
+
+build_script:
+  - cmd: msbuild Entry.sln /p:configuration=release
+
+artifacts:
+  - path: "*.zip"
+    name: Releases
+
+deploy:
+  description: '[Beta] Release.'
+  force_update: true
+  prerelease: false
+  provider: GitHub
+  auth_token:
+    secure: KyPzEsLVrgHG6Gqf0eYoVgUx8QJo2HMhQkJBzZvndDASItHx4J8fJ1TFTuemJMf7
+  artifact: Releases
+  on:
+    appveyor_repo_tag: true

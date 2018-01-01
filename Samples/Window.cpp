@@ -25,28 +25,23 @@ ENTRY_INTERFACE int Init()
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return 1;
 	}
-	char str[80];
-	strcpy (str,"Antler Testing ");
-	//strcat (str,Antler__App_GetEngineVersion());
 
-	window = SDL_CreateWindow(str, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 512, SDL_WINDOW_OPENGL);
+	window = SDL_CreateWindow("Entry Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 512, SDL_WINDOW_OPENGL);
 	return 0;
 }
 
 // Reload() is called once every time a library is reloaded (also the first time).
 ENTRY_INTERFACE int Reload()
 {
-	std::cout << "Reloading library press q to quit." << std::endl;
+	std::cout << "Reloading library close window to quit." << std::endl;
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS) != 0) {
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return 1;
 	}
-	char str[80];
-	strcpy (str,"Antler Testing ");
 
 	//strcat (str,Antler__App_GetEngineVersion());
 
-	window = SDL_CreateWindow(str, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 512, SDL_WINDOW_OPENGL);
+	window = SDL_CreateWindow("Entry Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 512, SDL_WINDOW_OPENGL);
 
 	return 0;
 }

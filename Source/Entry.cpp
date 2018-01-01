@@ -1032,7 +1032,7 @@ const char* GetAbsPath(const char* _path) {
 	LPWSTR pPathPtr;
 	WCHAR szwReturnedPath[_MAX_DIR + 1];
 	GetFullPathNameW(utf8toUtf16(_path).c_str(), 256, szwReturnedPath, &pPathPtr);
-	std::wstring tmp = pPathPtr;
+	std::wstring tmp = szwReturnedPath;
 	std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 	return _strdup(converter.to_bytes(tmp).c_str());
 #else
@@ -1133,6 +1133,8 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, c
 	const std::string prefix = (_prefix[0] == '?') ? GetDefaultPrefix() : _prefix;
 	const std::string suffix = (_suffix[0] == '?') ? GetDefaultSuffix() : _suffix;
 	std::string dir = StringAppend((_dir[0] == '\0') ? Entry_GetDir() : _dir);
+	if(!dir.empty()) dir = GetAbsPath(dir.c_str());
+
 	gLibName = prefix + std::string(_name) + suffix;
 	DestroyLib(gLibrary);
 
@@ -1190,13 +1192,17 @@ int Entry_Attach(const char* _path)
 	std::string path = _path;
 //	std::string path = StringReplace(std::string(_path), "\\", "/");
 	std::string dir = path.substr(0, path.find_last_of("\\")+1);
+	if(!dir.empty()) dir = GetAbsPath(dir.c_str());
+	
 	gLibName = path.substr(path.find_last_of("\\")+1);
 	
+	path = dir+gLibName;
+
 	DestroyLib(gLibrary);
 
 	// Check if we can find the gLibrary at all.
 #if !ENTRY_PLATFORM_ANDROID 
-	Log((path).c_str());
+	//Log((path).c_str());
 	
 	if (!FileExists(_path)) {
 		Log((std::string("Unable to find file.")).c_str());
@@ -1205,7 +1211,7 @@ int Entry_Attach(const char* _path)
 	// Move lib.
 	const std::string tmpLib = GetTmpDir() + gLibName;
 	FileDelete(tmpLib);
-	FileCopy(std::string(_path), tmpLib);
+	FileCopy(std::string(path), tmpLib);
 	
 	if(!dir.empty())
 		gNotifyEnabled = fileWatcher.StartWatching(dir);	

@@ -1,0 +1,23 @@
+language: cpp
+matrix:
+ include:
+  - compiler: gcc
+    os: linux
+  - compiler: clang
+    os: osx
+
+addons:
+ apt:
+  sources:
+   - ubuntu-toolchain-r-test
+  packages:
+   - gcc-4.8
+   - g++-4.8
+   
+script:
+ - chmod u+x aemake
+ - ./aemake gmake 
+ - make config=release
+
+notifications:
+ email: false
