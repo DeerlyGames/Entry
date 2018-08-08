@@ -94,7 +94,7 @@ std::wstring utf8toUtf16(const std::string & str)
 	PTR_##FuncName FuncName = NULL;
 
 ENTRY_PROC(int, Init, (void))
-ENTRY_PROC(int, Update, (void))
+ENTRY_PROC(int, Update, (struct Entry_State*))
 ENTRY_PROC(int, Reload, (void))
 ENTRY_PROC(void, Unload, (void))
 ENTRY_PROC(void*, UserData, (void))
@@ -264,7 +264,7 @@ public:
 		++counter;
 	}
 
-	void Release() const{
+	void Release() const {
 		if(--counter == 0) delete this;
 	}
 
@@ -599,7 +599,6 @@ inline void Log(const char* _info){
 
 // End: Logging Functions
 //////////////////////////////////////////////////////////////////////
-
 
 #ifndef __APPLE__
 static const unsigned BUFFERSIZE = 4096;
@@ -1126,6 +1125,9 @@ const char* GetDefaultSuffix() {
 }
 
 static FileWatcher fileWatcher;
+static Entry_State* old_state = NULL;
+static Entry_State* new_state = NULL;
+
 
 int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, const char * _suffix)
 {
@@ -1189,6 +1191,7 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, c
 
 int Entry_Attach(const char* _path)
 {
+//	container.entities = malloc();
 	std::string path = _path;
 //	std::string path = StringReplace(std::string(_path), "\\", "/");
 	std::string dir = path.substr(0, path.find_last_of("\\")+1);
@@ -1265,7 +1268,7 @@ int Entry_Run(int _flags)
 			if (Reload) return !Reload();
 		}
 
-		if(Update) return !Update();
+		if (Update) return !Update(old_state);
 
 		// User wants the gLibrary to quit.
 		if (!Reload && !Update) return 0;

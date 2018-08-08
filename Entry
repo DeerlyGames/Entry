@@ -1,0 +1,19 @@
+project 	"Entry.Static"
+	targetname 	"LibEntrys"
+	kind 		"StaticLib"
+
+	files 
+	{
+		"Source/Entry.cpp",
+		"Source/Entry.h"
+	}
+
+project 	"Entry.Static"
+	targetname 	"LibEntry"
+	kind 		"StaticLib"
+
+	files 
+	{
+		"Source/Entry.cpp",
+		"Source/Entry.h"
+	}

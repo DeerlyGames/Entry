@@ -1,7 +1,7 @@
 -- These values automatically update throughout the project.
 ENTRY_VERSION_MAJOR=0
 ENTRY_VERSION_MINOR=2
-ENTRY_VERSION_PATCH=1
+ENTRY_VERSION_PATCH=3
 
 ENTRY_VERSION=ENTRY_VERSION_MAJOR.."."..ENTRY_VERSION_MINOR.."."..ENTRY_VERSION_PATCH
 
@@ -29,24 +29,41 @@ filter { "system:linux" }
 	linkoptions { "-rdynamic -static-libgcc -static-libstdc++" }
 
 
-group "Samples"
+group "Sample"
 project "HelloWorld"
 	location 	"Build"
 	kind 		"SharedLib"
+	
+	includedirs
+	{	
+		"Source",
+		"Sample/SDL2/include" 
+	}
+	
 	files
 	{ 
-		"Samples/HelloWorld.cpp"
+		"Sample/HelloWorld.cpp"
 	}
+	filter{"system:windows"}
+		flags{"NoRuntimeChecks","NoBufferSecurityCheck", "OmitDefaultLibrary"}
+		
+project "Helloworld.Main"
+	location "Build"
+	kind "ConsoleApp"
+	includedirs
+	{	
+		"Source",
+		"Sample/SDL2/include" 
+	}
+	files
+	{
+		"Sample/Main.cpp"
+	}
+	links { "Entry", "SDL2" }
 
-project "SimpleLoop"
+project "SDL2"
 	location 	"Build"
-	kind 		"SharedLib"
-	files 		{ "Samples/SimpleLoop.cpp" }
-
-project "Window"
-	location 	"Build"
-	kind 		"SharedLib"
-	files 		{ "Samples/Window.cpp" }
+	kind 		"StaticLib"
 
 	defines
 	{
@@ -59,31 +76,31 @@ project "Window"
 
 	includedirs
 	{ 
-		"Samples",
-		"Samples/SDL2/include",
-		"Samples/SDL2/src" 
+		"Sample",
+		"Sample/SDL2/include",
+		"Sample/SDL2/src" 
 	}
 
 	files
 	{
-		"Samples/SDL2/src/*.c",
-		"Samples/SDL2/src/atomic/*.c",
-		"Samples/SDL2/src/audio/*.c",
-		"Samples/SDL2/src/cpuinfo/*.c",
-		"Samples/SDL2/src/dynapi/*.c",
-		"Samples/SDL2/src/events/*.c",
-		"Samples/SDL2/src/file/*.c",
-		"Samples/SDL2/src/haptic/*.c",
-		"Samples/SDL2/src/joystick/*.c",
-		"Samples/SDL2/src/libm/*.c",
-		"Samples/SDL2/src/power/*.c",
-		"Samples/SDL2/src/render/*.c",
-		"Samples/SDL2/src/render/software/*.c",
-		"Samples/SDL2/src/stdlib/*.c",
-		"Samples/SDL2/src/thread/*.c",
-		"Samples/SDL2/src/timer/*.c",
-		"Samples/SDL2/src/video/*.c",
-		"Samples/SDL2/src/video/dummy/*.c"	
+		"Sample/SDL2/src/*.c",
+		"Sample/SDL2/src/atomic/*.c",
+		"Sample/SDL2/src/audio/*.c",
+		"Sample/SDL2/src/cpuinfo/*.c",
+		"Sample/SDL2/src/dynapi/*.c",
+		"Sample/SDL2/src/events/*.c",
+		"Sample/SDL2/src/file/*.c",
+		"Sample/SDL2/src/haptic/*.c",
+		"Sample/SDL2/src/joystick/*.c",
+		"Sample/SDL2/src/libm/*.c",
+		"Sample/SDL2/src/power/*.c",
+		"Sample/SDL2/src/render/*.c",
+		"Sample/SDL2/src/render/software/*.c",
+		"Sample/SDL2/src/stdlib/*.c",
+		"Sample/SDL2/src/thread/*.c",
+		"Sample/SDL2/src/timer/*.c",
+		"Sample/SDL2/src/video/*.c",
+		"Sample/SDL2/src/video/dummy/*.c"	
 	}
 
 	filter { "system:android" }
@@ -91,17 +108,17 @@ project "Window"
 		links{ "android", "GLESv1_CM", "GLESv2", "dl", "log"}
 		files 
 		{ 
-			"Samples/SDL2/src/audio/android/*.c",
-			"Samples/SDL2/src/core/android/*.c",
-			"Samples/SDL2/src/filesystem/android/*.c", -- Maybe not needed
-			"Samples/SDL2/src/haptic/dummy/*.c",
-			"Samples/SDL2/src/joystick/android/*.c",
-			"Samples/SDL2/src/loadso/dlopen/*.c",
-			"Samples/SDL2/src/loadso/dummy/*.c",
-			"Samples/SDL2/src/power/android/*.c", -- Maybe not needed
-			"Samples/SDL2/src/thread/pthread/*.c",
-			"Samples/SDL2/src/timer/unix/*.c", -- Maybe not needed
-			"Samples/SDL2/src/video/android/*.c"
+			"Sample/SDL2/src/audio/android/*.c",
+			"Sample/SDL2/src/core/android/*.c",
+			"Sample/SDL2/src/filesystem/android/*.c", -- Maybe not needed
+			"Sample/SDL2/src/haptic/dummy/*.c",
+			"Sample/SDL2/src/joystick/android/*.c",
+			"Sample/SDL2/src/loadso/dlopen/*.c",
+			"Sample/SDL2/src/loadso/dummy/*.c",
+			"Sample/SDL2/src/power/android/*.c", -- Maybe not needed
+			"Sample/SDL2/src/thread/pthread/*.c",
+			"Sample/SDL2/src/timer/unix/*.c", -- Maybe not needed
+			"Sample/SDL2/src/video/android/*.c"
 		}
 
 	filter {"system:linux"}
@@ -109,17 +126,17 @@ project "Window"
 		links{ "dl", "pthread" }
 		files 
 		{ 
-			"Samples/SDL2/src/core/linux/SDL_evdev.c",
-			"Samples/SDL2/src/core/linux/SDL_udev.c",
-			"Samples/SDL2/src/filesystem/unix/*.c", -- Maybe not needed
-			"Samples/SDL2/src/haptic/linux/*.c",
-			"Samples/SDL2/src/joystick/linux/*.c",
-			"Samples/SDL2/src/loadso/dlopen/*.c",
-			"Samples/SDL2/src/loadso/dummy/*.c",
-			"Samples/SDL2/src/power/linux/*.c", -- Maybe not needed
-			"Samples/SDL2/src/thread/pthread/*.c",
-			"Samples/SDL2/src/timer/unix/*.c",
-			"Samples/SDL2/src/video/x11/*.c"
+			"Sample/SDL2/src/core/linux/SDL_evdev.c",
+			"Sample/SDL2/src/core/linux/SDL_udev.c",
+			"Sample/SDL2/src/filesystem/unix/*.c", -- Maybe not needed
+			"Sample/SDL2/src/haptic/linux/*.c",
+			"Sample/SDL2/src/joystick/linux/*.c",
+			"Sample/SDL2/src/loadso/dlopen/*.c",
+			"Sample/SDL2/src/loadso/dummy/*.c",
+			"Sample/SDL2/src/power/linux/*.c", -- Maybe not needed
+			"Sample/SDL2/src/thread/pthread/*.c",
+			"Sample/SDL2/src/timer/unix/*.c",
+			"Sample/SDL2/src/video/x11/*.c"
 		}
 		includedirs
 		{
@@ -129,38 +146,38 @@ project "Window"
 	filter {"system:windows"}
 
 		linkoptions{"/ignore:4006"}
-		defines{ 	"HAVE_LIBC=0" }
+	--	defines{ 	"HAVE_LIBC=0" }
 		files 
 		{	
-			"Samples/SDL2/src/core/windows/*.c",
-			"Samples/SDL2/src/filesystem/windows/*.c", -- Maybe not needed
-			"Samples/SDL2/src/haptic/windows/*.c",
-			"Samples/SDL2/src/joystick/windows/*.c",
-			"Samples/SDL2/src/loadso/windows/*.c",
-			"Samples/SDL2/src/power/windows/*.c", -- Maybe not needed
-			"Samples/SDL2/src/render/direct3d/*.c", -- Maybe not needed
-			"Samples/SDL2/src/thread/generic/SDL_syscond.c",
-			"Samples/SDL2/src/thread/windows/*.c",
-			"Samples/SDL2/src/timer/windows/*.c",
-			"Samples/SDL2/src/video/windows/*.c"
+			"Sample/SDL2/src/core/windows/*.c",
+			"Sample/SDL2/src/filesystem/windows/*.c", -- Maybe not needed
+			"Sample/SDL2/src/haptic/windows/*.c",
+			"Sample/SDL2/src/joystick/windows/*.c",
+			"Sample/SDL2/src/loadso/windows/*.c",
+			"Sample/SDL2/src/power/windows/*.c", -- Maybe not needed
+			"Sample/SDL2/src/render/direct3d/*.c", -- Maybe not needed
+			"Sample/SDL2/src/thread/generic/SDL_syscond.c",
+			"Sample/SDL2/src/thread/windows/*.c",
+			"Sample/SDL2/src/timer/windows/*.c",
+			"Sample/SDL2/src/video/windows/*.c"
 		}
 		links { "Gdi32", "Iphlpapi", "Imm32", "Ole32", "OleAut32", "OpenGL32", "Version", "Winmm" }
 
 
 group ""
-project "EntryMain"
+project "Entry"
 	location "Build"
 	targetname "Entry"
-	kind "ConsoleApp"
+	kind "StaticLib"
 
 	files
 	{ 
-		"Source/*.cpp",
-		"Source/*.h"
+		"Source/Entry.cpp",
+		"Source/Entry.h"
 	}
 
 	filter {"system:windows"}
-		files {"Source/Entry.rc"}
+	--	files {"Source/Entry.rc"}
 	filter {"system:web"}
 		linkoptions{"-s MAIN_MODULE=1 --embed-file Web/Debug/libSimpleLoop.js"}	
 	filter{}

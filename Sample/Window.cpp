@@ -17,21 +17,27 @@
 #include <iostream>
 #include "SDL2/include/SDL.h"
 
-static SDL_Window* window;
+typedef struct Entry_State
+{
+	float value;
+	SDL_Window* window;
+}Entry_State;
+
+struct Entry_State state;
 
 ENTRY_INTERFACE int Init()
 {
-	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS) != 0) {
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
         return 1;
 	}
 
-	window = SDL_CreateWindow("Entry Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 512, SDL_WINDOW_OPENGL);
+	state.window = SDL_CreateWindow("Entry Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 512, SDL_WINDOW_OPENGL);
 	return 0;
 }
 
 // Reload() is called once every time a library is reloaded (also the first time).
-ENTRY_INTERFACE int Reload()
+/*ENTRY_INTERFACE int Reload()
 {
 	std::cout << "Reloading library close window to quit." << std::endl;
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS) != 0) {
@@ -44,12 +50,15 @@ ENTRY_INTERFACE int Reload()
 	window = SDL_CreateWindow("Entry Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 512, 512, SDL_WINDOW_OPENGL);
 
 	return 0;
-}
+}*/
 
 // Update() is called in a loop once loaded.
 // You are responsible for delaying the loop.
-ENTRY_INTERFACE int Update()
+ENTRY_INTERFACE int Update(Entry_State* _state)
 {
+	if (_state != NULL)
+		memcpy(&state, _state, sizeof(state));
+	_state = &state;
 	SDL_Event e;
 	//Read any events that occured, for now we'll just quit if any event occurs
 	while (SDL_PollEvent(&e)){
@@ -59,12 +68,13 @@ ENTRY_INTERFACE int Update()
 		}
 	}
 	SDL_Delay(10);
+	std::cout << "Reloading library close window to quit." << std::endl;
 	return 0;
 }
 
 ENTRY_INTERFACE void Unload()
 {
 	printf("unload\n");
-	SDL_DestroyWindow(window);
-	SDL_Quit();
+//	SDL_DestroyWindow(state.window);
+//	SDL_Quit();
 }

@@ -34,7 +34,6 @@ int Entry_Run(int _flags = 0);
 
 void Entry_WebRun();
 
-
 /*-------------------------------------------------------*/
 /*------------Auto Generated Version Macros -------------*/
 /*-------------------------------------------------------*/
@@ -45,7 +44,7 @@ void Entry_WebRun();
 #define ENTRY_VERSION_MINOR 2
 #endif
 #ifndef ENTRY_VERSION_PATCH
-#define ENTRY_VERSION_PATCH 1
+#define ENTRY_VERSION_PATCH 3
 #endif
 
 #define ENTRY_PLATFORM_ANDROID 			0

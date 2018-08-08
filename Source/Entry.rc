@@ -11,8 +11,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 A_MAIN_ICON      ICON "../deerlygames.ico"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,2,1,0
- PRODUCTVERSION 0,2,1,0
+ FILEVERSION 0,2,3,0
+ PRODUCTVERSION 0,2,3,0
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
  FILEFLAGS 0x0L
  FILEOS VOS__WINDOWS32
@@ -25,12 +25,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Deerly Games\0"
             VALUE "FileDescription", "Entry\0"
-            VALUE "FileVersion", "0.2.1"
+            VALUE "FileVersion", "0.2.3"
             VALUE "InternalName", "Entry"
             VALUE "LegalCopyright", "Copyright (C) 2017 Deerly Games"
             VALUE "OriginalFilename", "Entry.exe"
             VALUE "ProductName", "Entry"
-            VALUE "ProductVersion", "0.2.1"
+            VALUE "ProductVersion", "0.2.3"
         END
     END
     BLOCK "VarFileInfo"
