@@ -100,7 +100,7 @@ project "SDL2"
 		"Sample/SDL2/src/thread/*.c",
 		"Sample/SDL2/src/timer/*.c",
 		"Sample/SDL2/src/video/*.c",
-		"Sample/SDL2/src/video/dummy/*.c"	
+		"Sample/SDL2/src/video/dummy/*.c"
 	}
 
 	filter { "system:android" }

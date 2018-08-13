@@ -93,13 +93,11 @@ std::wstring utf8toUtf16(const std::string & str)
 	typedef retVal (APIENTRY * PTR_##FuncName) Params; \
 	PTR_##FuncName FuncName = NULL;
 
-ENTRY_PROC(int, Init, (void))
+ENTRY_PROC(int, Init, (struct Entry_State*))
 ENTRY_PROC(int, Update, (struct Entry_State*))
-ENTRY_PROC(int, Reload, (void))
-ENTRY_PROC(void, Unload, (void))
-ENTRY_PROC(void*, UserData, (void))
+ENTRY_PROC(int, Reload, (struct Entry_State*))
+ENTRY_PROC(int, Unload, (struct Entry_State*))
 static void* gLibrary;
-static void* guserData;
 static std::string gLibName;
 static bool gNotifyEnabled = false;
 static int gFlags = 0;
@@ -1125,8 +1123,6 @@ const char* GetDefaultSuffix() {
 }
 
 static FileWatcher fileWatcher;
-static Entry_State* old_state = NULL;
-static Entry_State* new_state = NULL;
 
 
 int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, const char * _suffix)
@@ -1178,13 +1174,8 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, c
 		Log((std::string("Unsuccesfull attachment...")).c_str());
 
 	Init = (PTR_Init)LoadFunction(gLibrary, "Init");
-
-	if (Init){ if (Init()) return 2; };
-
-//	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
+	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
-
-//	if (Reload){ if (Reload()>0) return 2;};
 
 	return (gLibrary == 0);
 }
@@ -1233,18 +1224,13 @@ int Entry_Attach(const char* _path)
 		Log((std::string("Unsuccesfull attachment...")).c_str());
 
 	Init = (PTR_Init)LoadFunction(gLibrary, "Init");
-
-	if (Init){ if (Init()) return 2; };
-
-//	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
+	Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 	Update = (PTR_Update)LoadFunction(gLibrary, "Update");
-
-//	if (Reload){ if (Reload(guserData)>0) return 2;};
 
 	return (gLibrary == 0);
 }
 
-int Entry_Run(int _flags)
+int Entry_Run(struct Entry_State* state, int _flags)
 {
 	gFlags = _flags;
 	if (gLibrary != 0) {
@@ -1252,7 +1238,7 @@ int Entry_Run(int _flags)
 		if (gNotifyEnabled && fileWatcher.IsChanged()) {
 
 			Unload = (PTR_Unload)LoadFunction(gLibrary, "Unload");
-			if (Unload) Unload();
+			if (Unload) !Unload(state);
 
 
 			DestroyLib(gLibrary);
@@ -1264,20 +1250,25 @@ int Entry_Run(int _flags)
 		
 			Reload = (PTR_Reload)LoadFunction(gLibrary, "Reload");
 			Update = (PTR_Update)LoadFunction(gLibrary, "Update");
-
-			if (Reload) return !Reload();
 		}
 
-		if (Update) return !Update(old_state);
+		if (Reload){
+			const int res = !Reload(state);
+			Reload = NULL;
+			return res;
+		}
+
+		if (Init){ 
+			const int res = !Init(state);
+			Init = NULL;
+			return res;
+		};
+
+		if (Update) return !Update(state);
 
 		// User wants the gLibrary to quit.
 		if (!Reload && !Update) return 0;
 		return 1;
 	}
 	return 0;
-}
-
-void Entry_WebRun()
-{
-	Entry_Run();
 }

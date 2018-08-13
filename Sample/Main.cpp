@@ -21,7 +21,6 @@ ENTRY_MAIN(int argc, char *argv[])
 
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop(Entry_WebRun, 60, 1);
-
 #else
 	while(Entry_Run()){
 		SDL_Event e;

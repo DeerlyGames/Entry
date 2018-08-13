@@ -30,9 +30,7 @@ int Entry_Attach(const char* _path);
 int Entry_AttachExt(const char* _dir, const char* _name, const char* _prefix = "?", const char* _suffix = "?");
 
 /// Runs the specified entry setup. Returns 0 (Requests quiting) or 1 (Keep running).
-int Entry_Run(int _flags = 0);
-
-void Entry_WebRun();
+int Entry_Run(struct Entry_State* state, int _flags = 0);
 
 /*-------------------------------------------------------*/
 /*------------Auto Generated Version Macros -------------*/
