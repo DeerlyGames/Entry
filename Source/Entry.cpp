@@ -65,6 +65,12 @@ std::wstring utf8toUtf16(const std::string & str)
 #	include <sys/types.h>
 #	include <sys/stat.h>
 #	include <unistd.h>
+
+#	if defined(__GNUC__) && __GNUC__ >= 4 || defined(__clang__)
+#		define ENTRY_LOCAL __attribute__((visibility("hidden")))
+#	else
+#		define ENTRY_LOCAL
+#	endif
 #endif
 
 #if ENTRY_PLATFORM_LINUX
@@ -251,7 +257,7 @@ void DestroyLib(void* _handle) {
 // Start: FileWatcher & Thread
 
 #if ENTRY_PLATFORM_ANDROID || ENTRY_PLATFORM_LINUX || ENTRY_PLATFORM_MACOS || ENTRY_PLATFORM_WEB
-class RefCounted
+class ENTRY_LOCAL RefCounted
 {
 public:
 	RefCounted() :
@@ -267,13 +273,10 @@ public:
 	}
 
 protected:
-//	(ReferenceCounted)
-	/// Destroys the RefCountedObject.	
-
 	virtual ~RefCounted(){}
 
 private:
-	class AtomicInteger{
+	class ENTRY_LOCAL AtomicInteger{
 	public:
 		AtomicInteger(){ counter = 0; }
 
@@ -314,7 +317,7 @@ private:
 
 	mutable AtomicInteger counter;	
 };
-class DirIter
+class ENTRY_LOCAL DirIter
 {
 public:
 	DirIter() :
@@ -373,8 +376,6 @@ public:
 		return *this;		
 	}
 
-	//DirIter& operator = (const std::string& _dir);
-
 	bool operator == (const DirIter& _iterator) const{
 		return GetName() == _iterator.GetName();		
 	}
@@ -386,7 +387,7 @@ public:
 private:
 	std::string path;
 
-	class Implementation : public RefCounted
+	class ENTRY_LOCAL Implementation : public RefCounted
 	{
 	public:
 		Implementation(const std::string& _path) :
@@ -428,7 +429,7 @@ private:
 
 #endif
 
-class Mutex
+class ENTRY_LOCAL Mutex
 {
 public:
 	Mutex() {
@@ -487,7 +488,7 @@ private:
 	void* handle;
 };
 
-class ScopedLock {
+class ENTRY_LOCAL ScopedLock {
 public:
 	ScopedLock(Mutex& _mutex) :
 		mutex(_mutex)
@@ -504,7 +505,7 @@ private:
 	Mutex& mutex;
 };
 
-class Thread {
+class ENTRY_LOCAL Thread {
 public:
 #ifdef _WIN32
 
@@ -602,7 +603,7 @@ inline void Log(const char* _info){
 static const unsigned BUFFERSIZE = 4096;
 #endif
 
-class FileWatcher : public Thread
+class ENTRY_LOCAL FileWatcher : public Thread
 {
 public:
 	FileWatcher() :
@@ -858,7 +859,7 @@ public:
 	}
 
 private:
-	class Timer
+	class ENTRY_LOCAL Timer
 	{
 	public:
 		Timer() {
@@ -926,7 +927,7 @@ private:
 	class ItemInfo;
 	typedef std::map< std::string, ItemInfo> ItemInfoMap;
 
-	class ItemInfo
+	class ENTRY_LOCAL ItemInfo
 	{
 	public:
 		ItemInfo() :
@@ -1124,7 +1125,6 @@ const char* GetDefaultSuffix() {
 
 static FileWatcher fileWatcher;
 
-
 int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, const char * _suffix)
 {
 	// If empty use platform specific.
@@ -1182,15 +1182,13 @@ int Entry_AttachExt(const char* _dir, const char* _name, const char * _prefix, c
 
 int Entry_Attach(const char* _path)
 {
-//	container.entities = malloc();
-	std::string path = _path;
-//	std::string path = StringReplace(std::string(_path), "\\", "/");
-	std::string dir = path.substr(0, path.find_last_of("\\")+1);
-	if(!dir.empty()) dir = GetAbsPath(dir.c_str());
+	std::string path = StringReplace(std::string(_path), "\\", "/");
+	std::string dir = path.substr(0, path.find_last_of("/")+1);
 	
-	gLibName = path.substr(path.find_last_of("\\")+1);
+	gLibName = path.substr(path.find_last_of("/")+1);
 	
 	path = dir+gLibName;
+
 
 	DestroyLib(gLibrary);
 

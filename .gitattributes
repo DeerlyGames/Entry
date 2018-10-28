@@ -1,0 +1,3 @@
+aemake eol=lf
+Tools/MacOS/aemake binary
+Tools/Linux64/aemake binary
